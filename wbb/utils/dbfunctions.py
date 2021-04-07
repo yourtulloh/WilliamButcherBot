@@ -9,6 +9,8 @@ karmadb = db.karma
 chatsdb = db.chats
 gbansdb = db.gban
 coupledb = db.couple
+captchadb = db.captcha
+antiflooddb = db.antiflood
 
 """ Notes functions """
 
@@ -398,3 +400,50 @@ async def save_couple(chat_id: int, date: str, couple: dict):
         },
         upsert=True
     )
+
+# Captcha
+
+
+async def is_captcha_on(chat_id: int) -> bool:
+    chat = await captchadb.find_one({"chat_id": chat_id})
+    if not chat:
+        return True
+    return False
+
+
+async def captcha_on(chat_id: int):
+    is_captcha = await is_captcha_on(chat_id)
+    if is_captcha:
+        return
+    return await captchadb.delete_one({"chat_id": chat_id})
+
+
+async def captcha_off(chat_id: int):
+    is_captcha = await is_captcha_on(chat_id)
+    if not is_captcha:
+        return
+    return await captchadb.insert_one({"chat_id": chat_id})
+
+
+# antiflood
+
+
+async def is_antiflood_on(chat_id: int) -> bool:
+    chat = await antiflooddb.find_one({"chat_id": chat_id})
+    if not chat:
+        return True
+    return False
+
+
+async def antiflood_on(chat_id: int):
+    is_antiflood = await is_antiflood_on(chat_id)
+    if is_antiflood:
+        return
+    return await antiflooddb.delete_one({"chat_id": chat_id})
+
+
+async def antiflood_off(chat_id: int):
+    is_antiflood = await is_antiflood_on(chat_id)
+    if not is_captcha:
+        return
+    return await antiflooddb.insert_one({"chat_id": chat_id})

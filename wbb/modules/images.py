@@ -1,14 +1,39 @@
-import urllib.request
-import json
+"""
+MIT License
+
+Copyright (c) 2021 TheHamkerCat
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
 import asyncio
-from random import randint
+import json
+import urllib.request
+
 from pyrogram import filters
-from wbb import app, arq
-from wbb.utils.errors import capture_err
+
+from wbb import app
+from wbb.core.decorators.errors import capture_err
 
 __MODULE__ = "Images"
-__HELP__ = '''/cat  - Get Cute Cats Images
-/wall - Get Wallpapers'''
+__HELP__ = """/cat  - Get Cute Cats Images
+For more images search like wallpapers etc, use inline mode.
+"""
 
 
 async def delete_message_with_delay(delay, message):
@@ -20,33 +45,8 @@ async def delete_message_with_delay(delay, message):
 @capture_err
 async def cat(_, message):
     with urllib.request.urlopen(
-            "https://api.thecatapi.com/v1/images/search"
+        "https://api.thecatapi.com/v1/images/search"
     ) as url:
         data = json.loads(url.read().decode())
-    cat_url = (data[0]['url'])
+    cat_url = data[0]["url"]
     await message.reply_photo(cat_url)
-
-
-@app.on_message(filters.command("wall") & ~filters.edited)
-@capture_err
-async def wall(_, message):
-    if len(message.command) < 2:
-        await message.reply_text("/wall needs an argument")
-        return
-    initial_term = message.text.split(None, 1)[1]
-    m = await message.reply_text("Searching!")
-    term = initial_term.replace(' ', '%20')
-    try:
-        wallpapers = await arq.wall(term)
-    except KeyError:
-        await m.edit("Found literally nothing!,"
-                     + "You should work on your English.")
-        return
-    if len(wallpapers) > 10:
-        selection = 10
-    else:
-        selection = len(wallpapers)
-    index = randint(0, selection - 1)
-    wallpaper = wallpapers[index].url_image
-    await message.reply_document(wallpaper)
-    await m.delete()

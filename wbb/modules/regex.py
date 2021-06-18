@@ -1,9 +1,33 @@
+"""
+MIT License
+
+Copyright (c) 2021 TheHamkerCat
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
 import re
 import sre_constants
-from wbb import app
-from wbb.utils.filter_groups import regex_group
+
 from pyrogram import filters
 
+from wbb import app
+from wbb.utils.filter_groups import regex_group
 
 __MODULE__ = "Sed"
 __HELP__ = "**Usage:**\ns/foo/bar"
@@ -12,8 +36,13 @@ __HELP__ = "**Usage:**\ns/foo/bar"
 DELIMITERS = ("/", ":", "|", "_")
 
 
-@app.on_message(filters.regex(r"s([{}]).*?\1.*".format("".join(DELIMITERS))), group=regex_group)
+@app.on_message(
+    filters.regex(r"s([{}]).*?\1.*".format("".join(DELIMITERS))),
+    group=regex_group,
+)
 async def sed(_, message):
+    if not message.text:
+        return
     sed_result = separate_sed(message.text)
     if message.reply_to_message:
         if message.reply_to_message.text:
@@ -28,22 +57,21 @@ async def sed(_, message):
             return
 
         if not repl:
-            await message.reply_text(
+            return await message.reply_text(
                 "You're trying to replace... " "nothing with something?"
             )
-            return
 
         try:
 
             if infinite_checker(repl):
-                await message.reply_text("Nice try -_-")
-                return
+                return await message.reply_text("Nice try -_-")
 
             if "i" in flags and "g" in flags:
                 text = re.sub(repl, repl_with, to_fix, flags=re.I).strip()
             elif "i" in flags:
-                text = re.sub(repl, repl_with, to_fix,
-                              count=1, flags=re.I).strip()
+                text = re.sub(
+                    repl, repl_with, to_fix, count=1, flags=re.I
+                ).strip()
             elif "g" in flags:
                 text = re.sub(repl, repl_with, to_fix).strip()
             else:
@@ -97,14 +125,13 @@ def separate_sed(sed_string):
 
         else:
             return None
-
         while counter < len(sed_string):
             if (
                 sed_string[counter] == "\\"
                 and counter + 1 < len(sed_string)
                 and sed_string[counter + 1] == delim
             ):
-                sed_string = sed_string[:counter] + sed_string[counter + 1:]
+                sed_string = sed_string[:counter] + sed_string[counter + 1 :]
 
             elif sed_string[counter] == delim:
                 replace_with = sed_string[start:counter]

@@ -21,18 +21,35 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-from wbb import aiohttpsession
+from pykeyboard import InlineKeyboard
+from pyrogram.types import InlineKeyboardButton as Ikb
 
-headers = {
-    "Accept": "application/json",
-    "Content-Type": "application/json",
-}
+from wbb.utils.functions import get_urls_from_text as is_url
 
 
-async def fetch(url: str):
-    async with aiohttpsession.get(url, headers=headers) as resp:
-        try:
-            data = await resp.json()
-        except Exception:
-            data = await resp.text()
-    return data
+def keyboard(buttons_list, row_width: int = 2):
+    """
+    Buttons builder, pass buttons in a list and it will
+    return pyrogram.types.IKB object
+    Ex: keyboard([["click here", "https://google.com"]])
+    if theres, a url, it will make url button, else callback button
+    """
+    buttons = InlineKeyboard(row_width=row_width)
+    data = [
+        (
+            Ikb(text=str(i[0]), callback_data=str(i[1]))
+            if not is_url(i[1])
+            else Ikb(text=str(i[0]), url=str(i[1]))
+        )
+        for i in buttons_list
+    ]
+    buttons.add(*data)
+    return buttons
+
+
+def ikb(data: dict, row_width: int = 2):
+    """
+    Converts a dict to pyrogram buttons
+    Ex: dict_to_keyboard({"click here": "this is callback data"})
+    """
+    return keyboard(data.items(), row_width=row_width)

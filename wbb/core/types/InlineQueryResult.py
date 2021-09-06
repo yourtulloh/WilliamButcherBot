@@ -1,8 +1,32 @@
+"""
+MIT License
+
+Copyright (c) 2021 TheHamkerCat
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
 from typing import List, Optional, Union
 
 import pyrogram
 from pyrogram import raw, types, utils
-from pyrogram.file_id import DOCUMENT_TYPES, PHOTO_TYPES, FileId, FileType
+from pyrogram.file_id import (DOCUMENT_TYPES, PHOTO_TYPES, FileId,
+                              FileType)
 from pyrogram.types import InlineQueryResult
 
 
@@ -74,11 +98,13 @@ class InlineQueryResultAudio(InlineQueryResult):
         reply_markup: "types.InlineKeyboardMarkup" = None,
         input_message_content: "types.InputMessageContent" = None,
     ):
-        super().__init__("audio", id, input_message_content, reply_markup)
+        super().__init__(
+            "audio", id, input_message_content, reply_markup
+        )
 
         self.audio_url = audio_url
         self.thumb_url = thumb_url
-        self.voice = True if mime_type == "audio/ogg" else False
+        self.voice = bool(mime_type == "audio/ogg")
         self.title = title
         self.caption = caption
         self.description = description
@@ -119,7 +145,10 @@ class InlineQueryResultAudio(InlineQueryResult):
 
         message, entities = (
             await utils.parse_text_entities(
-                client, self.caption, self.parse_mode, self.caption_entities
+                client,
+                self.caption,
+                self.parse_mode,
+                self.caption_entities,
             )
         ).values()
 
@@ -146,13 +175,10 @@ class InlineQueryResultAudio(InlineQueryResult):
         )
 
 
-"""
-    CREDITS:
 
-    THE CODE BELOW THIS LINE IS WRITTEN BY https://github.com/Mahesh0253. [https://t.me/DeletedUser420]
-    HERE IS THE ACTUAL ORIGIN:
-    https://github.com/Mahesh0253/pyrogram/blob/inline/pyrogram/types/inline_mode/inline_query_result_cached_document.py
-"""
+#  CREDITS:
+#       THE CODE BELOW THIS LINE IS WRITTEN BY https://github.com/Mahesh0253. [https://t.me/DeletedUser420]
+#       https://github.com/Mahesh0253/pyrogram/blob/inline/pyrogram/types/inline_mode/inline_query_result_cached_document.py
 
 
 class InlineQueryResultCachedDocument(InlineQueryResult):
@@ -206,7 +232,9 @@ class InlineQueryResultCachedDocument(InlineQueryResult):
         reply_markup: "types.InlineKeyboardMarkup" = None,
         input_message_content: "types.InputMessageContent" = None,
     ):
-        super().__init__("file", id, input_message_content, reply_markup)
+        super().__init__(
+            "file", id, input_message_content, reply_markup
+        )
 
         self.file_id = file_id
         self.title = title
@@ -222,7 +250,10 @@ class InlineQueryResultCachedDocument(InlineQueryResult):
 
         message, entities = (
             await utils.parse_text_entities(
-                client, self.caption, self.parse_mode, self.caption_entities
+                client,
+                self.caption,
+                self.parse_mode,
+                self.caption_entities,
             )
         ).values()
 
@@ -261,7 +292,10 @@ def get_input_file_from_file_id(
 
     file_type = decoded.file_type
 
-    if expected_file_type is not None and file_type != expected_file_type:
+    if (
+        expected_file_type is not None
+        and file_type != expected_file_type
+    ):
         raise ValueError(
             f'Expected: "{expected_file_type}", got "{file_type}" file_id instead'
         )

@@ -1,7 +1,7 @@
 {
     "name": "WilliamButcherBot",
     "description": "Telegram Group Management Bot Written In Python Using Pyrogram.",
-    "repository": "https://github.com/thehamkercat/WilliamButcherBot",
+    "repository": "https://github.com/TheHamkerCat/WilliamButcherBot",
     "logo": "https://upload.wikimedia.org/wikipedia/commons/c/c3/Python-logo-notext.svg",
     "keywords": [
     "python3",
@@ -11,6 +11,7 @@
     "telegram-bot",
     "pyrogram"
     ],
+    "repository": "https://github.com/TheHamkerCat/WilliamButcherBot",
     "stack": "container",
     "env": {
         "BOT_TOKEN": {
@@ -41,16 +42,11 @@
             "description": "gban logs. ex: '-123456'",
             "required": true
         },
-        "FERNET_ENCRYPTION_KEY": {
-            "description": "Don't change this value",
-            "value": "iKMq0WZMnJKjMQxZWKtv-cplMuF_LoyshXj0XbTGGWM=",
-            "required": true
-        },
         "WELCOME_DELAY_KICK_SEC": {
             "value": "300",
             "required": true
         },
-        "MONGO_DB_URI": {
+        "MONGO_URL": {
             "description": "Get From Here. https://telegra.ph/How-To-get-Mongodb-URI-04-06",
             "required": true
         },
@@ -68,16 +64,22 @@
             "required": true
         },
         "LOG_MENTIONS": {
-            "description": "Fill 1 to turn this one, or 0 to turn it off.",
+            "description": "Fill 1 to turn this on, or 0 to turn it off.",
             "required": true
         },
         "USERBOT_PREFIX": {
             "description": "Userbot command prefix, Leave it empty if you don't know what that is.",
             "required": false
         },
-        "SPAM_CHECK_EXCEPTION_GROUPS": {
-            "description": "Groups where spam scans shouldn't happen, leave it empty if you don't know what that is",
-            "required": false
+        "RSS_DELAY": {
+            "description": "Delay in which RSS will send updates in chat",
+            "value": "300",
+            "required": true
+        },
+        "PM_PERMIT":{
+            "description": "Pm permit, fill 1 to enable or 0 to disable it.",
+            "value": "1",
+            "required": true
         }
     }
 }

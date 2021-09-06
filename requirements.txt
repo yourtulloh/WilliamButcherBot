@@ -2,7 +2,6 @@ aiohttp
 aiofiles
 ffmpeg-python
 gTTS
-cryptography
 dnspython
 future
 googletrans==4.0.0-rc1
@@ -11,7 +10,6 @@ pillow
 psutil
 pykeyboard
 pyrogram
-pyromod
 python-arq
 requests
 search_engine_parser
@@ -20,5 +18,8 @@ TgCrypto
 uvloop
 youtube_dl
 bs4
-wget
 python-dotenv
+feedparser
+pyromod
+fuzzysearch
+img2pdf

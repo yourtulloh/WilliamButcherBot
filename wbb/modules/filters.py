@@ -28,9 +28,11 @@ from pyrogram import filters
 from wbb import app
 from wbb.core.decorators.errors import capture_err
 from wbb.core.decorators.permissions import adminsOnly
+from wbb.core.keyboard import ikb
 from wbb.utils.dbfunctions import (delete_filter, get_filter,
                                    get_filters_names, save_filter)
 from wbb.utils.filter_groups import chat_filters_group
+from wbb.utils.functions import extract_text_and_keyb
 
 __MODULE__ = "Filters"
 __HELP__ = """/filters To Get All The Filters In The Chat.
@@ -41,7 +43,9 @@ __HELP__ = """/filters To Get All The Filters In The Chat.
 You can use markdown or html to save text too."""
 
 
-@app.on_message(filters.command("filter") & ~filters.edited & ~filters.private)
+@app.on_message(
+    filters.command("filter") & ~filters.edited & ~filters.private
+)
 @adminsOnly("can_change_info")
 async def save_filters(_, message):
     if len(message.command) < 2 or not message.reply_to_message:
@@ -57,7 +61,9 @@ async def save_filters(_, message):
         )
     name = message.text.split(None, 1)[1].strip()
     if not name:
-        return await message.reply_text("**Usage**\n__/filter [FILTER_NAME]__")
+        return await message.reply_text(
+            "**Usage:**\n__/filter [FILTER_NAME]__"
+        )
     chat_id = message.chat.id
     _type = "text" if message.reply_to_message.text else "sticker"
     _filter = {
@@ -77,22 +83,30 @@ async def save_filters(_, message):
 async def get_filterss(_, message):
     _filters = await get_filters_names(message.chat.id)
     if not _filters:
-        await message.reply_text("**No filters in this chat.**")
-    else:
-        msg = f"List of filters in {message.chat.title}\n"
-        for _filter in _filters:
-            msg += f"**-** `{_filter}`\n"
-        await message.reply_text(msg)
+        return await message.reply_text(
+            "**No filters in this chat.**"
+        )
+    _filters.sort()
+    msg = f"List of filters in {message.chat.title}\n"
+    for _filter in _filters:
+        msg += f"**-** `{_filter}`\n"
+    await message.reply_text(msg)
 
 
-@app.on_message(filters.command("stop") & ~filters.edited & ~filters.private)
+@app.on_message(
+    filters.command("stop") & ~filters.edited & ~filters.private
+)
 @adminsOnly("can_change_info")
 async def del_filter(_, message):
     if len(message.command) < 2:
-        return await message.reply_text("**Usage**\n__/stop [FILTER_NAME]__")
+        return await message.reply_text(
+            "**Usage:**\n__/stop [FILTER_NAME]__"
+        )
     name = message.text.split(None, 1)[1].strip()
     if not name:
-        return await message.reply_text("**Usage**\n__/stop [FILTER_NAME]__")
+        return await message.reply_text(
+            "**Usage:**\n__/stop [FILTER_NAME]__"
+        )
     chat_id = message.chat.id
     deleted = await delete_filter(chat_id, name)
     if deleted:
@@ -123,18 +137,32 @@ async def filters_re(_, message):
             data_type = _filter["type"]
             data = _filter["data"]
             if data_type == "text":
+                keyb = None
+                if re.findall(r"\[.+\,.+\]", data):
+                    keyboard = extract_text_and_keyb(ikb, data)
+                    if keyboard:
+                        data, keyb = keyboard
+
                 if message.reply_to_message:
                     await message.reply_to_message.reply_text(
-                        data, disable_web_page_preview=True
+                        data,
+                        reply_markup=keyb,
+                        disable_web_page_preview=True,
                     )
-                    if text[0] == "~":
-                        return await message.delete()
+
+                    if text.startswith("~"):
+                        await message.delete()
                     return
-                await message.reply_text(data, disable_web_page_preview=True)
-            else:
-                if message.reply_to_message:
-                    await message.reply_to_message.reply_sticker(data)
-                    if text[0] == "~":
-                        return await message.delete()
-                    return
-                return await message.reply_sticker(data)
+
+                return await message.reply_text(
+                    data,
+                    reply_markup=keyb,
+                    disable_web_page_preview=True,
+                )
+            if message.reply_to_message:
+                await message.reply_to_message.reply_sticker(data)
+
+                if text.startswith("~"):
+                    await message.delete()
+                return
+            return await message.reply_sticker(data)

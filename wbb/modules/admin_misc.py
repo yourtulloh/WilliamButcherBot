@@ -40,7 +40,9 @@ __HELP__ = """
 @adminsOnly("can_change_info")
 async def set_chat_title(_, message):
     if len(message.command) < 2:
-        return await message.reply_text("**Usage:**\n/set_chat_title NEW NAME")
+        return await message.reply_text(
+            "**Usage:**\n/set_chat_title NEW NAME"
+        )
     old_title = message.chat.title
     new_title = message.text.split(None, 1)[1]
     await message.chat.set_title(new_title)
@@ -52,6 +54,14 @@ async def set_chat_title(_, message):
 @app.on_message(filters.command("set_user_title") & ~filters.private)
 @adminsOnly("can_change_info")
 async def set_user_title(_, message):
+    if not message.reply_to_message:
+        return await message.reply_text(
+            "Reply to user's message to set his admin title"
+        )
+    if not message.reply_to_message.from_user:
+        return await message.reply_text(
+            "I can't change admin title of an unknown entity"
+        )
     chat_id = message.chat.id
     from_user = message.reply_to_message.from_user
     if len(message.command) < 2:
@@ -68,18 +78,23 @@ async def set_user_title(_, message):
 @app.on_message(filters.command("set_chat_photo") & ~filters.private)
 @adminsOnly("can_change_info")
 async def set_chat_photo(_, message):
-    if not message.reply_to_message:
+    reply = message.reply_to_message
+
+    if not reply:
         return await message.reply_text(
             "Reply to a photo to set it as chat_photo"
         )
-    if (
-        not message.reply_to_message.photo
-        and not message.reply_to_message.document
-    ):
+
+    file = reply.document or reply.photo
+    if not file:
         return await message.reply_text(
-            "Reply to a photo to set it as chat_photo"
+            "Reply to a photo or document to set it as chat_photo"
         )
-    photo = await message.reply_to_message.download()
+
+    if file.file_size > 5000000:
+        return await message.reply("File size too large.")
+
+    photo = await reply.download()
     await message.chat.set_photo(photo)
     await message.reply_text("Successfully Changed Group Photo")
     os.remove(photo)

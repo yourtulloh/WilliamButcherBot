@@ -1,6 +1,6 @@
 """
     CREDITS:
-        EVAL AND SH FUNCTION IN THIS MODULE IS WRITTEN BY @Pokurt.
+        MOST OF THE CODE IN THIS FILE IS WRITTEN BY @Pokurt.
         SOURCE:
             https://github.com/pokurt/Nana-Remix/blob/master/nana/plugins/devs.py
 """
@@ -10,33 +10,25 @@ import re
 import subprocess
 import sys
 import traceback
+from asyncio import sleep
 from html import escape
-from inspect import getfullargspec
 from io import StringIO
+from time import time
 
-import aiofiles
 from pyrogram import filters
-from pyrogram.types import Message
+from pyrogram.errors import MessageNotModified
+from pyrogram.types import Message, ReplyKeyboardMarkup
 
-from wbb import SUDOERS, USERBOT_PREFIX, app, app2, arq
-from wbb.core.decorators.misc import exec_time
-
-__MODULE__ = "Userbot"
-__HELP__ = """
-.alive - Send Alive Message.
-.l - Execute Python Code.
-.sh - Execute Shell Code.
-.approve | .disapprove - Approve Or Disapprove A User To PM You.
-.block | .unblock - Block Or Unblock A User.
-"""
+from wbb import app2  # don't remove
+from wbb import SUDOERS, USERBOT_PREFIX, app, arq, eor
+from wbb.core.tasks import add_task, rm_task
 
 # Eval and Sh module from nana-remix
 
 m = None
 p = print
 r = None
-exec_time = exec_time
-arq = arq
+arrow = lambda x: (x.text if isinstance(x, Message) else "") + "\n`→`"
 
 
 async def aexec(code, client, message):
@@ -47,17 +39,32 @@ async def aexec(code, client, message):
     return await locals()["__aexec"](client, message)
 
 
-async def edit_or_reply(msg: Message, **kwargs):
-    func = msg.edit_text if msg.from_user.is_self else msg.reply
-    spec = getfullargspec(func.__wrapped__).args
-    await func(**{k: v for k, v in kwargs.items() if k in spec})
+async def iter_edit(message: Message, text: str):
+    async for m in app2.iter_history(message.chat.id):
+
+        # If no replies found, reply
+        if m.message_id == message.message_id:
+            return 0
+
+        if not m.from_user or not m.text or not m.reply_to_message:
+            continue
+
+        if (
+            (m.reply_to_message.message_id == message.message_id)
+            and (m.from_user.id == message.from_user.id)
+            and ("→" in m.text)
+        ):
+            try:
+                return await m.edit(text)
+            except MessageNotModified:
+                return
 
 
 @app2.on_message(
     filters.user(SUDOERS)
     & ~filters.forwarded
     & ~filters.via_bot
-    & filters.command("l", prefixes=USERBOT_PREFIX)
+    & filters.command("eval", prefixes=USERBOT_PREFIX)
 )
 async def executor(client, message: Message):
     global m, p, r
@@ -65,19 +72,47 @@ async def executor(client, message: Message):
         cmd = message.text.split(" ", maxsplit=1)[1]
     except IndexError:
         return await message.delete()
+
+    if message.chat.type == "channel":
+        return
+
     m = message
     p = print
-    if message.reply_to_message:
-        r = message.reply_to_message
+
+    # To prevent keyboard input attacks
+    if m.reply_to_message:
+        r = m.reply_to_message
+        if r.reply_markup and isinstance(
+            r.reply_markup, ReplyKeyboardMarkup
+        ):
+            return await eor(m, text="INSECURE!")
+    status = None
     old_stderr = sys.stderr
     old_stdout = sys.stdout
     redirected_output = sys.stdout = StringIO()
     redirected_error = sys.stderr = StringIO()
     stdout, stderr, exc = None, None, None
     try:
-        await aexec(cmd, client, message)
-    except Exception:
-        exc = traceback.format_exc()
+        task, task_id = await add_task(
+            aexec,
+            "Eval",
+            cmd,
+            client,
+            m,
+        )
+
+        text = f"{arrow('')} Pending Task `{task_id}`"
+        if not message.edit_date:
+            status = await m.reply(text, quote=True)
+
+        await task
+    except Exception as e:
+        e = traceback.format_exc()
+        print(e)
+        exc = e.splitlines()[-1]
+
+    await rm_task()
+
     stdout = redirected_output.getvalue()
     stderr = redirected_error.getvalue()
     sys.stdout = old_stdout
@@ -91,37 +126,63 @@ async def executor(client, message: Message):
         evaluation = stdout
     else:
         evaluation = "Success"
-    final_output = f"**INPUT:**\n```{escape(cmd)}```\n\n**OUTPUT**:\n```{escape(evaluation.strip())}```"
+
+    final_output = f"**→**\n`{escape(evaluation.strip())}`"
+
     if len(final_output) > 4096:
         filename = "output.txt"
         with open(filename, "w+", encoding="utf8") as out_file:
             out_file.write(str(evaluation.strip()))
         await message.reply_document(
             document=filename,
-            caption=f"**INPUT:**\n`{escape(cmd[0:980])}`\n\n**OUTPUT:**\n`Attached Document`",
+            caption="`→`\n  **Attached Document**",
             quote=False,
         )
-        await message.delete()
         os.remove(filename)
-    else:
-        await edit_or_reply(message, text=final_output)
+        if status:
+            await status.delete()
+        return
+
+    # Edit the output if input is edited
+    if message.edit_date:
+        status_ = await iter_edit(message, final_output)
+        if status_ == 0:
+            return await message.reply(final_output, quote=True)
+        return
+    if not status.from_user:
+        status = await app2.get_messages(
+            status.chat.id, status.message_id
+        )
+    await eor(status, text=final_output, quote=True)
 
 
 @app2.on_message(
     filters.user(SUDOERS)
     & ~filters.forwarded
     & ~filters.via_bot
+    & ~filters.edited
     & filters.command("sh", prefixes=USERBOT_PREFIX),
 )
-async def shellrunner(client, message: Message):
+async def shellrunner(_, message: Message):
     if len(message.command) < 2:
-        return await edit_or_reply(message, text="**Usage:**\n/sh git pull")
+        return await eor(message, text="**Usage:**\n/sh git pull")
+
+    if message.reply_to_message:
+        r = message.reply_to_message
+        if r.reply_markup and isinstance(
+            r.reply_markup,
+            ReplyKeyboardMarkup,
+        ):
+            return await eor(message, text="INSECURE!")
+
     text = message.text.split(None, 1)[1]
     if "\n" in text:
         code = text.split("\n")
         output = ""
         for x in code:
-            shell = re.split(""" (?=(?:[^'"]|'[^']*'|"[^"]*")*$)""", x)
+            shell = re.split(
+                """ (?=(?:[^'"]|'[^']*'|"[^"]*")*$)""", x
+            )
             try:
                 process = subprocess.Popen(
                     shell,
@@ -130,7 +191,7 @@ async def shellrunner(client, message: Message):
                 )
             except Exception as err:
                 print(err)
-                await edit_or_reply(
+                await eor(
                     message,
                     text=f"**INPUT:**\n```{escape(text)}```\n\n**ERROR:**\n```{escape(err)}```",
                 )
@@ -139,7 +200,7 @@ async def shellrunner(client, message: Message):
             output += "\n"
     else:
         shell = re.split(""" (?=(?:[^'"]|'[^']*'|"[^"]*")*$)""", text)
-        for a in range(len(shell)):
+        for a, _ in enumerate(shell):
             shell[a] = shell[a].replace('"', "")
         try:
             process = subprocess.Popen(
@@ -155,7 +216,7 @@ async def shellrunner(client, message: Message):
                 value=exc_obj,
                 tb=exc_tb,
             )
-            return await edit_or_reply(
+            return await eor(
                 message,
                 text=f"**INPUT:**\n```{escape(text)}```\n\n**ERROR:**\n```{''.join(errors)}```",
             )
@@ -166,63 +227,19 @@ async def shellrunner(client, message: Message):
         if len(output) > 4096:
             with open("output.txt", "w+") as file:
                 file.write(output)
-            await app.send_document(
+            await app2.send_document(
                 message.chat.id,
                 "output.txt",
                 reply_to_message_id=message.message_id,
-                caption="`Output`",
+                caption=escape(text),
             )
             return os.remove("output.txt")
-        await edit_or_reply(
+        await eor(
             message,
             text=f"**INPUT:**\n```{escape(text)}```\n\n**OUTPUT:**\n```{escape(output)}```",
         )
     else:
-        await edit_or_reply(
+        await eor(
             message,
             text=f"**INPUT:**\n```{escape(text)}```\n\n**OUTPUT: **\n`No output`",
         )
-
-
-""" C and CPP Eval """
-
-
-async def sendFile(message: Message, text: str):
-    file = "output.txt"
-    async with aiofiles.open(file, mode="w+") as f:
-        await f.write(text)
-    await message.reply_document(file)
-    os.remove(file)
-
-
-@app2.on_message(
-    filters.command(["c", "cpp"], prefixes=USERBOT_PREFIX)
-    & filters.user(SUDOERS)
-)
-async def c_cpp_eval(_, message: Message):
-    code = message.text.split(None, 1)[1]
-    file = "exec.c"
-    compiler = "g++"
-    out = "exec"
-    cmdCompile = [compiler, "-g", file, "-o", out]
-    cmdRun = [f"./{out}"]
-    async with aiofiles.open(file, mode="w+") as f:
-        await f.write(code)
-    pCompile = subprocess.run(cmdCompile, capture_output=True)
-    os.remove(file)
-    err = pCompile.stderr.decode()
-    if err:
-        text = f"**INPUT:**\n```{escape(code)}```\n\n**COMPILE-TIME ERROR:**```{escape(err)}```"
-        if len(text) > 4090:
-            return await sendFile(message, text)
-        return await edit_or_reply(message, text=text)
-    pRun = subprocess.run(cmdRun, capture_output=True)
-    os.remove(out)
-    err = pRun.stderr.decode()
-    out = pRun.stdout.decode()
-    err = f"**RUNTIME ERROR:**\n```{escape(err)}```" if err else None
-    out = f"**OUTPUT:**\n```{escape(out)}```" if out else None
-    text = f"**INPUT:**\n```{escape(code)}```\n\n{err if err else out}"
-    if len(text) > 4090:
-        return await sendFile(message, text)
-    await edit_or_reply(message, text=text)

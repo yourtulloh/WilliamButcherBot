@@ -25,8 +25,8 @@ from pykeyboard import InlineKeyboard
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardButton, Message
 
-from wbb import (BOT_ID, LOG_GROUP_ID, LOG_MENTIONS, USERBOT_ID, USERBOT_NAME,
-                 USERBOT_USERNAME, app, app2)
+from wbb import (BOT_ID, LOG_GROUP_ID, LOG_MENTIONS, USERBOT_ID,
+                 USERBOT_NAME, USERBOT_USERNAME, app, app2)
 from wbb.core.decorators.errors import capture_err
 from wbb.utils.filter_groups import taglog_group
 
@@ -52,8 +52,15 @@ async def sendLog(message: Message):
 **Bot:** {message.from_user.is_bot}
 """
     button = InlineKeyboard(row_width=1)
-    button.add(InlineKeyboardButton(text="Check Action", url=message.link))
-    await app.send_message(LOG_GROUP_ID, text=msg, reply_markup=button)
+    button.add(
+        InlineKeyboardButton(text="Check Action", url=message.link)
+    )
+    await app.send_message(
+        LOG_GROUP_ID,
+        text=msg,
+        reply_markup=button,
+        disable_web_page_preview=True,
+    )
 
 
 @app2.on_message(
@@ -71,9 +78,10 @@ async def tagLoggerFunc(_, message: Message):
         return
     if message.reply_to_message:
         reply_message = message.reply_to_message
-        if reply_message.from_user:
-            if reply_message.from_user.id == USERBOT_ID:
-                return await sendLog(message)
+        if reply_message.from_user and (
+            reply_message.from_user.id == USERBOT_ID
+        ):
+            return await sendLog(message)
 
     if message.text:
         text = message.text

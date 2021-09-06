@@ -22,34 +22,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-print("[INFO]: INITIALIZING")
 import asyncio
-import logging
 import time
+from inspect import getfullargspec
 from os import path
 
 from aiohttp import ClientSession
 from motor.motor_asyncio import AsyncIOMotorClient as MongoClient
 from pyrogram import Client
-from Python_ARQ import ARQ
-
+from pyrogram.types import Message
 from pyromod import listen
-
-# Setup logging
-log_file = "error.log"
-
-with open(log_file, "w") as f:
-    f.write("PEAK OF LOG FILE")
-logging.basicConfig(
-    level=logging.ERROR,
-    format="[%(asctime)s.%(msecs)03d] %(filename)s:%(lineno)s %(levelname)s: %(message)s",
-    datefmt="%m-%d %H:%M",
-    filename=log_file,
-    filemode="w",
-)
-console = logging.StreamHandler()
-logging.getLogger("").addHandler(console)
-log = logging.getLogger()
+from Python_ARQ import ARQ
 
 is_config = path.exists("config.py")
 
@@ -61,7 +44,6 @@ else:
 USERBOT_PREFIX = USERBOT_PREFIX
 GBAN_LOG_GROUP_ID = GBAN_LOG_GROUP_ID
 SUDOERS = SUDO_USERS_ID
-FERNET_ENCRYPTION_KEY = FERNET_ENCRYPTION_KEY
 WELCOME_DELAY_KICK_SEC = WELCOME_DELAY_KICK_SEC
 LOG_GROUP_ID = LOG_GROUP_ID
 MESSAGE_DUMP_CHAT = MESSAGE_DUMP_CHAT
@@ -71,7 +53,7 @@ bot_start_time = time.time()
 
 # MongoDB client
 print("[INFO]: INITIALIZING DATABASE")
-mongo_client = MongoClient(MONGO_DB_URI)
+mongo_client = MongoClient(MONGO_URL)
 db = mongo_client.wbb
 
 
@@ -85,7 +67,9 @@ async def load_sudoers():
         if user_id not in sudoers:
             sudoers.append(user_id)
             await sudoersdb.update_one(
-                {"sudo": "sudo"}, {"$set": {"sudoers": sudoers}}, upsert=True
+                {"sudo": "sudo"},
+                {"$set": {"sudoers": sudoers}},
+                upsert=True,
             )
     SUDOERS = (SUDOERS + sudoers) if sudoers else SUDOERS
     print("[INFO]: LOADED SUDOERS")
@@ -95,86 +79,51 @@ loop = asyncio.get_event_loop()
 loop.run_until_complete(load_sudoers())
 
 if not HEROKU:
-    print("[INFO]: INITIALIZING USERBOT CLIENT")
     app2 = Client(
-        "userbot", phone_number=PHONE_NUMBER, api_id=API_ID, api_hash=API_HASH
+        "userbot",
+        phone_number=PHONE_NUMBER,
+        api_id=API_ID,
+        api_hash=API_HASH,
     )
 else:
-    print("[INFO]: INITIALIZING USERBOT CLIENT")
     app2 = Client(SESSION_STRING, api_id=API_ID, api_hash=API_HASH)
 
-# Aiohttp Client
-print("[INFO]: INITIALZING AIOHTTP SESSION")
 aiohttpsession = ClientSession()
-# ARQ Client
-print("[INFO]: INITIALIZING ARQ CLIENT")
+
 arq = ARQ(ARQ_API_URL, ARQ_API_KEY, aiohttpsession)
-# Bot client
-print("[INFO]: INITIALIZING BOT CLIENT")
-app = Client("wbb", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH)
 
-
-BOT_ID = 0
-BOT_NAME = ""
-BOT_USERNAME = ""
-BOT_MENTION = ""
-BOT_DC_ID = 0
-USERBOT_ID = 0
-USERBOT_NAME = ""
-USERBOT_USERNAME = ""
-USERBOT_DC_ID = 0
-USERBOT_MENTION = ""
-USERBOT_BOT_CHAT_DIFFERENCE = []
-
-
-def get_info(app, app2):
-    global BOT_ID, BOT_NAME, BOT_USERNAME, BOT_DC_ID, BOT_MENTION
-    global USERBOT_ID, USERBOT_NAME, USERBOT_USERNAME, USERBOT_DC_ID, USERBOT_MENTION
-    global USERBOT_BOT_CHAT_DIFFERENCE
-    getme = app.get_me()
-    getme2 = app2.get_me()
-    BOT_ID = getme.id
-    USERBOT_ID = getme2.id
-    BOT_NAME = (
-        f"{getme.first_name} {getme.last_name}"
-        if getme.last_name
-        else getme.first_name
-    )
-    BOT_USERNAME = getme.username
-    BOT_MENTION = getme.mention
-    BOT_DC_ID = getme.dc_id
-
-    USERBOT_NAME = (
-        f"{getme2.first_name} {getme2.last_name}"
-        if getme2.last_name
-        else getme2.first_name
-    )
-    USERBOT_USERNAME = getme2.username
-    USERBOT_MENTION = getme2.mention
-    USERBOT_DC_ID = getme2.dc_id
-
-    all_ub_chats = [
-        i.chat.id
-        for i in app2.iter_dialogs()
-        if i.chat.type in ["group", "supergroup", "private"]
-    ]
-    ub_b_common_chats = [i.id for i in app2.get_common_chats(BOT_USERNAME)]
-    USERBOT_BOT_CHAT_DIFFERENCE = list(
-        set(all_ub_chats).difference(ub_b_common_chats)
-    )
-    USERBOT_BOT_CHAT_DIFFERENCE = [
-        x
-        for x in USERBOT_BOT_CHAT_DIFFERENCE
-        if x not in SPAM_CHECK_EXCEPTION_GROUPS
-    ]
-
+app = Client(
+    "wbb", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH
+)
 
 print("[INFO]: STARTING BOT CLIENT")
 app.start()
 print("[INFO]: STARTING USERBOT CLIENT")
 app2.start()
-print("[INFO]: LOADING UB/BOT PROFILE INFO")
-get_info(app, app2)
-print("[INFO]: LOADED UB/BOT PROFILE INFO")
+
+print("[INFO]: GATHERING PROFILE INFO")
+x = app.get_me()
+y = app2.get_me()
+
+BOT_ID = x.id
+BOT_NAME = x.first_name + (x.last_name or "")
+BOT_USERNAME = x.username
+BOT_MENTION = x.mention
+BOT_DC_ID = x.dc_id
+
+USERBOT_ID = y.id
+USERBOT_NAME = y.first_name + (y.last_name or "")
+USERBOT_USERNAME = y.username
+USERBOT_MENTION = y.mention
+USERBOT_DC_ID = y.dc_id
+
 if USERBOT_ID not in SUDOERS:
     SUDOERS.append(USERBOT_ID)
+
+
+async def eor(msg: Message, **kwargs):
+    func = msg.edit_text if msg.from_user.is_self else msg.reply
+    spec = getfullargspec(func.__wrapped__).args
+    return await func(
+        **{k: v for k, v in kwargs.items() if k in spec}
+    )

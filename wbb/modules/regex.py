@@ -1,26 +1,4 @@
-"""
-MIT License
-
-Copyright (c) 2021 TheHamkerCat
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-"""
+# https://github.com/PaulSonOfLars/tgbot/blob/master/tg_bot/modules/sed.py
 import re
 import sre_constants
 
@@ -58,7 +36,8 @@ async def sed(_, message):
 
         if not repl:
             return await message.reply_text(
-                "You're trying to replace... " "nothing with something?"
+                "You're trying to replace... "
+                "nothing with something?"
             )
 
         try:
@@ -67,7 +46,9 @@ async def sed(_, message):
                 return await message.reply_text("Nice try -_-")
 
             if "i" in flags and "g" in flags:
-                text = re.sub(repl, repl_with, to_fix, flags=re.I).strip()
+                text = re.sub(
+                    repl, repl_with, to_fix, flags=re.I
+                ).strip()
             elif "i" in flags:
                 text = re.sub(
                     repl, repl_with, to_fix, count=1, flags=re.I
@@ -75,7 +56,9 @@ async def sed(_, message):
             elif "g" in flags:
                 text = re.sub(repl, repl_with, to_fix).strip()
             else:
-                text = re.sub(repl, repl_with, to_fix, count=1).strip()
+                text = re.sub(
+                    repl, repl_with, to_fix, count=1
+                ).strip()
         except sre_constants.error:
             return
 
@@ -97,10 +80,7 @@ def infinite_checker(repl):
     ]
     for match in regex:
         status = re.search(match, repl)
-        if status:
-            return True
-        else:
-            return False
+        return bool(status)
 
 
 def separate_sed(sed_string):
@@ -131,7 +111,9 @@ def separate_sed(sed_string):
                 and counter + 1 < len(sed_string)
                 and sed_string[counter + 1] == delim
             ):
-                sed_string = sed_string[:counter] + sed_string[counter + 1 :]
+                sed_string = (
+                    sed_string[:counter] + sed_string[counter + 1 :]
+                )
 
             elif sed_string[counter] == delim:
                 replace_with = sed_string[start:counter]

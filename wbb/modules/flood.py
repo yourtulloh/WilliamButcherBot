@@ -21,27 +21,30 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+from asyncio import get_running_loop, sleep
 from time import time
 
 from pyrogram import filters
 from pyrogram.types import (CallbackQuery, ChatPermissions,
-                            InlineKeyboardButton, InlineKeyboardMarkup,
-                            Message)
+                            InlineKeyboardButton,
+                            InlineKeyboardMarkup, Message)
 
 from wbb import SUDOERS, app
 from wbb.core.decorators.errors import capture_err
+from wbb.core.decorators.permissions import adminsOnly
 from wbb.modules.admin import list_admins, member_permissions
+from wbb.utils.dbfunctions import flood_off, flood_on, is_flood_on
 from wbb.utils.filter_groups import flood_group
 
 __MODULE__ = "Flood"
 __HELP__ = """
-Anti-Flood system, the one who sends more than 7 messages in a row, gets muted for an hour (Except for admins).
+Anti-Flood system, the one who sends more than 10 messages in a row, gets muted for an hour (Except for admins).
 
-And no, you can't change the number of messages or action type.
+/flood [ENABLE|DISABLE] - Turn flood detection on or off
 """
 
 
-DB = {}  # NOTE Use mongodb instead of a fucking dict.
+DB = {}  # TODO Use mongodb instead of a fucking dict.
 
 
 def reset_flood(chat_id, user_id=0):
@@ -61,8 +64,11 @@ def reset_flood(chat_id, user_id=0):
 )
 @capture_err
 async def flood_control_func(_, message: Message):
+    if not message.chat:
+        return
     chat_id = message.chat.id
-
+    if not (await is_flood_on(chat_id)):
+        return
     # Initialize db if not already.
     if chat_id not in DB:
         DB[chat_id] = {}
@@ -85,8 +91,8 @@ async def flood_control_func(_, message: Message):
     if user_id in mods:
         return
 
-    # Mute if user sends more than 7 messages in a row
-    if DB[chat_id][user_id] >= 7:
+    # Mute if user sends more than 10 messages in a row
+    if DB[chat_id][user_id] >= 10:
         DB[chat_id][user_id] = 0
         try:
             await message.chat.restrict_member(
@@ -106,17 +112,29 @@ async def flood_control_func(_, message: Message):
                 ]
             ]
         )
-        return await message.reply_text(
+        m = await message.reply_text(
             f"Imagine flooding the chat in front of me, Muted {mention} for an hour!",
             reply_markup=keyboard,
         )
+
+        async def delete():
+            await sleep(3600)
+            try:
+                await m.delete()
+            except Exception:
+                pass
+
+        loop = get_running_loop()
+        return loop.create_task(delete())
     DB[chat_id][user_id] += 1
 
 
 @app.on_callback_query(filters.regex("unmute_"))
 async def flood_callback_func(_, cq: CallbackQuery):
     from_user = cq.from_user
-    permissions = await member_permissions(cq.message.chat.id, from_user.id)
+    permissions = await member_permissions(
+        cq.message.chat.id, from_user.id
+    )
     permission = "can_restrict_members"
     if permission not in permissions:
         return await cq.answer(
@@ -130,3 +148,25 @@ async def flood_callback_func(_, cq: CallbackQuery):
     text = f"~~{text}~~\n\n"
     text += f"__User unmuted by {from_user.mention}__"
     await cq.message.edit(text)
+
+
+@app.on_message(filters.command("flood") & ~filters.private)
+@adminsOnly("can_change_info")
+async def flood_toggle(_, message: Message):
+    if len(message.command) != 2:
+        return await message.reply_text(
+            "Usage: /flood [ENABLE|DISABLE]"
+        )
+    status = message.text.split(None, 1)[1].strip()
+    status = status.lower()
+    chat_id = message.chat.id
+    if status == "enable":
+        await flood_on(chat_id)
+        await message.reply_text("Enabled Flood Checker.")
+    elif status == "disable":
+        await flood_off(chat_id)
+        await message.reply_text("Disabled Flood Checker.")
+    else:
+        await message.reply_text(
+            "Unknown Suffix, Use /flood [ENABLE|DISABLE]"
+        )

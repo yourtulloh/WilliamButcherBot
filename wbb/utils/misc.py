@@ -80,20 +80,36 @@ def paginate_modules(page_n, module_dict, prefix, chat=None):
             )
         )
 
-    max_num_pages = ceil(len(pairs) / 7)
+    COLUMN_SIZE = 4
+
+    max_num_pages = ceil(len(pairs) / COLUMN_SIZE)
     modulo_page = page_n % max_num_pages
 
     # can only have a certain amount of buttons side by side
-    if len(pairs) > 7:
-        pairs = pairs[modulo_page * 7 : 7 * (modulo_page + 1)] + [
+    if len(pairs) > COLUMN_SIZE:
+        pairs = pairs[
+            modulo_page
+            * COLUMN_SIZE : COLUMN_SIZE
+            * (modulo_page + 1)
+        ] + [
             (
                 EqInlineKeyboardButton(
-                    "<",
-                    callback_data="{}_prev({})".format(prefix, modulo_page),
+                    "❮",
+                    callback_data="{}_prev({})".format(
+                        prefix, modulo_page
+                    ),
                 ),
                 EqInlineKeyboardButton(
-                    ">",
-                    callback_data="{}_next({})".format(prefix, modulo_page),
+                    "Back",
+                    callback_data="{}_home({})".format(
+                        prefix, modulo_page
+                    ),
+                ),
+                EqInlineKeyboardButton(
+                    "❯",
+                    callback_data="{}_next({})".format(
+                        prefix, modulo_page
+                    ),
                 ),
             )
         ]
@@ -102,4 +118,6 @@ def paginate_modules(page_n, module_dict, prefix, chat=None):
 
 
 def is_module_loaded(name):
-    return (not MOD_LOAD or name in MOD_LOAD) and name not in MOD_NOLOAD
+    return (
+        not MOD_LOAD or name in MOD_LOAD
+    ) and name not in MOD_NOLOAD

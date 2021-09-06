@@ -1,24 +1,52 @@
+"""
+MIT License
+
+Copyright (c) 2021 TheHamkerCat
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
 import os
+from asyncio import gather, get_running_loop
+from base64 import b64decode
+from io import BytesIO
 from random import randint
 
 import aiofiles
-import aiohttp
 import requests
 from bs4 import BeautifulSoup
 from pyrogram import filters
+from pyrogram.types import InputMediaPhoto, Message
 
-from wbb import SUDOERS, app
+from wbb import MESSAGE_DUMP_CHAT, app
 from wbb.core.decorators.errors import capture_err
+from wbb.utils.functions import get_file_id_from_message
+from wbb.utils.http import get
 
-__MODULE__ = "Reverse"
-__HELP__ = "/reverse  - Reverse search an image. [SUDOERS ONLY]"
+
+async def get_soup(url: str, headers):
+    html = await get(url, headers=headers)
+    return BeautifulSoup(html, "html.parser")
 
 
 @app.on_message(filters.command("reverse"))
 @capture_err
-async def reverse_image_search(_, message):
-    if message.from_user.id not in SUDOERS:
-        return await message.reply_text("THIS FEATURE IS ONLY FOR SUDO USERS.")
+async def reverse_image_search(_, message: Message):
     if not message.reply_to_message:
         return await message.reply_text(
             "Reply to a message to reverse search it."
@@ -34,37 +62,13 @@ async def reverse_image_search(_, message):
         return await message.reply_text(
             "Reply to an image/document/sticker/animation to reverse search it."
         )
-    m = await message.reply_text("Searching")
-    if reply.document:
-        if int(reply.document.file_size) > 3145728:
-            return await m.edit("File too large")
-        mime_type = reply.document.mime_type
-        if mime_type != "image/png" and mime_type != "image/jpeg":
-            return await m.edit("Document Mimetype Invalid")
-        file_id = reply.document.file_id
-    if reply.sticker:
-        if reply.sticker.is_animated:
-            if not reply.sticker.thumbs:
-                return await m.edit("Sticker Has No Thumb")
-            file_id = reply.sticker.thumbs[0].file_id
-        else:
-            file_id = reply.sticker.file_id
-
-    if reply.photo:
-        file_id = reply.photo.file_id
-
-    if reply.animation:
-        if not reply.animation.thumbs:
-            return await m.edit(
-                "Gif Has No Thumbnail, so it cannot be reverse searched"
-            )
-        file_id = reply.animation.thumbs[0].file_id
-
-    if reply.video:
-        if not reply.video.thumbs:
-            return
-        file_id = reply.video.thumbs[0].file_id
-    image = await app.download_media(file_id, f"{randint(1000, 10000)}.jpg")
+    m = await message.reply_text("Searching...")
+    file_id = get_file_id_from_message(reply)
+    if not file_id:
+        return await m.edit("Can't reverse that")
+    image = await app.download_media(
+        file_id, f"{randint(1000, 10000)}.jpg"
+    )
     async with aiofiles.open(image, "rb") as f:
         if image:
             search_url = "http://www.google.com/searchbyimage/upload"
@@ -72,8 +76,15 @@ async def reverse_image_search(_, message):
                 "encoded_image": (image, await f.read()),
                 "image_content": "",
             }
-            response = requests.post(
-                search_url, files=multipart, allow_redirects=False
+
+            def post_non_blocking():
+                return requests.post(
+                    search_url, files=multipart, allow_redirects=False
+                )
+
+            loop = get_running_loop()
+            response = await loop.run_in_executor(
+                None, post_non_blocking
             )
             location = response.headers.get("Location")
             os.remove(image)
@@ -82,19 +93,62 @@ async def reverse_image_search(_, message):
     headers = {
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:58.0) Gecko/20100101 Firefox/58.0"
     }
-    async with aiohttp.ClientSession() as session:
-        async with session.get(location, headers=headers) as resp:
-            soup = BeautifulSoup(await resp.text(), "html.parser")
-    div = soup.find_all("div", {"class": "r5a77d"})[0]
-    anchor_element = div.find("a")
-    text = anchor_element.text
+
     try:
-        await app.send_photo(
-            message.chat.id,
-            photo=f"https://webshot.amanoteam.com/print?q={location}",
-            caption=f"**Query** [{text}]({location})",
-        )
-        await m.delete()
+        soup = await get_soup(location, headers=headers)
+        div = soup.find_all("div", {"class": "r5a77d"})[0]
+        text = div.find("a").text
+        text = f"**Result**: [{text}]({location})"
     except Exception:
-        text = f"**Result**: [Link]({location})"
-        await m.edit(text)
+        return await m.edit(
+            f"**Result**: [Link]({location})",
+            disable_web_page_preview=True,
+        )
+
+    # Pass if no images detected
+    try:
+        url = "https://google.com" + soup.find_all(
+            "a", {"class": "ekf0x hSQtef"}
+        )[0].get("href")
+
+        soup = await get_soup(url, headers=headers)
+
+        media = []
+        for img in soup.find_all("img"):
+            if len(media) == 2:
+                break
+
+            if img.get("src"):
+                img = img.get("src")
+                if "image/gif" in img:
+                    continue
+
+                img = BytesIO(b64decode(img))
+                img.name = "img.png"
+                media.append(img)
+            elif img.get("data-src"):
+                img = img.get("data-src")
+                media.append(img)
+
+        # Cache images, so we can use file_ids
+        tasks = [
+            app.send_photo(MESSAGE_DUMP_CHAT, img) for img in media
+        ]
+        messages = await gather(*tasks)
+
+        await message.reply_media_group(
+            [
+                InputMediaPhoto(
+                    i.photo.file_id,
+                    caption=text,
+                )
+                for i in messages
+            ]
+        )
+    except Exception:
+        pass
+
+    await m.edit(
+        text,
+        disable_web_page_preview=True,
+    )

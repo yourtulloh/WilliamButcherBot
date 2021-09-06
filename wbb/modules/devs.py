@@ -10,17 +10,16 @@ import re
 import subprocess
 import sys
 import traceback
-from inspect import getfullargspec
 from io import StringIO
 from time import time
 
 from pyrogram import filters
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from pyrogram.types import (InlineKeyboardButton,
+                            InlineKeyboardMarkup, Message)
 
-from wbb import SUDOERS, app
+from wbb import SUDOERS, app, eor
 
-__MODULE__ = "Devs"
-__HELP__ = "/eval - Execute Python Code\n/sh - Execute Shell Code"
+# Module help for this is in sudoers.py
 
 
 async def aexec(code, client, message):
@@ -31,19 +30,14 @@ async def aexec(code, client, message):
     return await locals()["__aexec"](client, message)
 
 
-async def edit_or_reply(msg: Message, **kwargs):
-    func = msg.edit_text if msg.from_user.is_self else msg.reply
-    spec = getfullargspec(func.__wrapped__).args
-    await func(**{k: v for k, v in kwargs.items() if k in spec})
-
-
 @app.on_message(
     filters.user(SUDOERS)
     & ~filters.forwarded
     & ~filters.via_bot
+    & ~filters.edited
     & filters.command("eval")
 )
-async def executor(client, message):
+async def executor(client, message: Message):
     try:
         cmd = message.text.split(" ", maxsplit=1)[1]
     except IndexError:
@@ -81,7 +75,8 @@ async def executor(client, message):
             [
                 [
                     InlineKeyboardButton(
-                        text="⏳", callback_data=f"runtime {t2-t1} Seconds"
+                        text="⏳",
+                        callback_data=f"runtime {t2-t1} Seconds",
                     )
                 ]
             ]
@@ -106,7 +101,7 @@ async def executor(client, message):
                 ]
             ]
         )
-        await edit_or_reply(message, text=final_output, reply_markup=keyboard)
+        await eor(message, text=final_output, reply_markup=keyboard)
 
 
 @app.on_callback_query(filters.regex(r"runtime"))
@@ -119,17 +114,20 @@ async def runtime_func_cq(_, cq):
     filters.user(SUDOERS)
     & ~filters.forwarded
     & ~filters.via_bot
+    & ~filters.edited
     & filters.command("sh"),
 )
-async def shellrunner(client, message):
+async def shellrunner(_, message: Message):
     if len(message.command) < 2:
-        return await edit_or_reply(message, text="**Usage:**\n/sh git pull")
+        return await eor(message, text="**Usage:**\n/sh git pull")
     text = message.text.split(None, 1)[1]
     if "\n" in text:
         code = text.split("\n")
         output = ""
         for x in code:
-            shell = re.split(""" (?=(?:[^'"]|'[^']*'|"[^"]*")*$)""", x)
+            shell = re.split(
+                """ (?=(?:[^'"]|'[^']*'|"[^"]*")*$)""", x
+            )
             try:
                 process = subprocess.Popen(
                     shell,
@@ -138,13 +136,13 @@ async def shellrunner(client, message):
                 )
             except Exception as err:
                 print(err)
-                await edit_or_reply(message, text=f"**ERROR:**\n```{err}```")
+                await eor(message, text=f"**ERROR:**\n```{err}```")
             output += f"**{code}**\n"
             output += process.stdout.read()[:-1].decode("utf-8")
             output += "\n"
     else:
         shell = re.split(""" (?=(?:[^'"]|'[^']*'|"[^"]*")*$)""", text)
-        for a in range(len(shell)):
+        for a, _ in enumerate(shell):
             shell[a] = shell[a].replace('"', "")
         try:
             process = subprocess.Popen(
@@ -160,7 +158,7 @@ async def shellrunner(client, message):
                 value=exc_obj,
                 tb=exc_tb,
             )
-            return await edit_or_reply(
+            return await eor(
                 message, text=f"**ERROR:**\n```{''.join(errors)}```"
             )
         output = process.stdout.read()[:-1].decode("utf-8")
@@ -177,6 +175,6 @@ async def shellrunner(client, message):
                 caption="`Output`",
             )
             return os.remove("output.txt")
-        await edit_or_reply(message, text=f"**OUTPUT:**\n```{output}```")
+        await eor(message, text=f"**OUTPUT:**\n```{output}```")
     else:
-        await edit_or_reply(message, text="**OUTPUT: **\n`No output`")
+        await eor(message, text="**OUTPUT: **\n`No output`")

@@ -42,7 +42,6 @@ async def inline_query_handler(client, query):
             await client.answer_inline_query(
                 query.id, results=answerss, cache_time=10
             )
-            return
         elif text.split()[0] == "alive":
             answerss = await alive_function(answers)
             await client.answer_inline_query(
@@ -91,19 +90,6 @@ async def inline_query_handler(client, query):
                 query.id,
                 results=answerss,
             )
-        elif text.split()[0] == "bitly":
-            if len(text.split()) < 2:
-                return await client.answer_inline_query(
-                    query.id,
-                    results=answers,
-                    switch_pm_text="Link Shortener | bitly [LINK]",
-                    switch_pm_parameter="inline",
-                )
-            tex = text.split(None, 1)[1].strip()
-            answerss = await shortify(tex)
-            await client.answer_inline_query(
-                query.id, results=answerss, cache_time=2
-            )
 
         elif text.split()[0] == "wall":
             if len(text.split()) < 2:
@@ -145,7 +131,9 @@ async def inline_query_handler(client, query):
                 )
             tex = text.split(None, 1)[1].strip()
             answerss = await youtube_func(answers, tex)
-            await client.answer_inline_query(query.id, results=answerss)
+            await client.answer_inline_query(
+                query.id, results=answerss
+            )
 
         elif text.split()[0] == "lyrics":
             if len(text.split()) < 2:
@@ -157,34 +145,8 @@ async def inline_query_handler(client, query):
                 )
             tex = text.split(None, 1)[1].strip()
             answerss = await lyrics_func(answers, tex)
-            await client.answer_inline_query(query.id, results=answerss)
-
-        elif text.split()[0] == "gh_user":
-            if len(text.split()) < 2:
-                return await client.answer_inline_query(
-                    query.id,
-                    results=answers,
-                    switch_pm_text="Github User | gh_user [USERNAME/LINK]",
-                    switch_pm_parameter="inline",
-                )
-            tex = text.split(None, 1)[1].strip()
-            answerss = await github_user_func(answers, tex)
             await client.answer_inline_query(
-                query.id, results=answerss, cache_time=2
-            )
-
-        elif text.split()[0] == "gh_repo":
-            if len(text.split()) < 2:
-                return await client.answer_inline_query(
-                    query.id,
-                    results=answers,
-                    switch_pm_text="Github Repo Search | [LINK]",
-                    switch_pm_parameter="inline",
-                )
-            tex = text.split(None, 1)[1].strip()
-            answerss = await github_repo_func(answers, tex)
-            await client.answer_inline_query(
-                query.id, results=answerss, cache_time=2
+                query.id, results=answerss
             )
 
         elif text.split()[0] == "search":
@@ -273,21 +235,7 @@ async def inline_query_handler(client, query):
                     switch_pm_parameter="inline",
                 )
             tex = text.split()[1].strip()
-            answerss = await user_info_inline_func(answers, tex)
-            await client.answer_inline_query(
-                query.id, results=answerss, cache_time=2
-            )
-
-        elif text.split()[0] == "chat_info":
-            if len(text.split()) < 2:
-                return await client.answer_inline_query(
-                    query.id,
-                    results=answers,
-                    switch_pm_text="Chat Info | chat_info [USERNAME|ID]",
-                    switch_pm_parameter="inline",
-                )
-            tex = text.split()[1].strip()
-            answerss = await chat_info_inline_func(answers, tex)
+            answerss = await info_inline_func(answers, tex)
             await client.answer_inline_query(
                 query.id, results=answerss, cache_time=2
             )
@@ -307,20 +255,6 @@ async def inline_query_handler(client, query):
                 query.id, results=answerss, cache_time=2
             )
 
-        elif text.split()[0] == "pypi":
-            if len(text.split()) < 2:
-                return await client.answer_inline_query(
-                    query.id,
-                    results=answers,
-                    switch_pm_text="Pypi Search | pypi [Package Name]",
-                    switch_pm_parameter="inline",
-                )
-            tex = text.split()[1].strip()
-            answerss = await pypiSearchFunc(answers, tex)
-            await client.answer_inline_query(
-                query.id, results=answerss, cache_time=2
-            )
-
         elif text.split()[0] == "image":
             if len(text.split()) < 2:
                 return await client.answer_inline_query(
@@ -334,6 +268,16 @@ async def inline_query_handler(client, query):
             answerss = await image_func(answers, tex)
             await client.answer_inline_query(
                 query.id, results=answerss, cache_time=3600
+            )
+
+        elif text.split()[0] == "exec":
+            await execute_code(query)
+
+        elif text.strip() == "tasks":
+            user_id = query.from_user.id
+            answerss = await task_inline_func(user_id)
+            await client.answer_inline_query(
+                query.id, results=answerss, cache_time=1
             )
 
     except Exception as e:

@@ -21,7 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-import asyncio
 import re
 
 from pyrogram import filters
@@ -29,10 +28,14 @@ from pyrogram import filters
 from wbb import app
 from wbb.core.decorators.errors import capture_err
 from wbb.core.decorators.permissions import adminsOnly
-from wbb.utils.dbfunctions import (alpha_to_int, get_karma, get_karmas,
-                                   int_to_alpha, is_karma_on, karma_off,
-                                   karma_on, update_karma)
-from wbb.utils.filter_groups import karma_negative_group, karma_positive_group
+from wbb.core.sections import section
+from wbb.utils.dbfunctions import (alpha_to_int, get_karma,
+                                   get_karmas, int_to_alpha,
+                                   is_karma_on, karma_off, karma_on,
+                                   update_karma)
+from wbb.utils.filter_groups import (karma_negative_group,
+                                     karma_positive_group)
+from wbb.utils.functions import get_user_id_and_usernames
 
 __MODULE__ = "Karma"
 __HELP__ = """[UPVOTE] - Use upvote keywords like "+", "+1", "thanks" etc to upvote a message.
@@ -70,16 +73,22 @@ async def upvote(_, message):
     chat_id = message.chat.id
     user_id = message.reply_to_message.from_user.id
     user_mention = message.reply_to_message.from_user.mention
-    current_karma = await get_karma(chat_id, await int_to_alpha(user_id))
+    current_karma = await get_karma(
+        chat_id, await int_to_alpha(user_id)
+    )
     if current_karma:
         current_karma = current_karma["karma"]
         karma = current_karma + 1
         new_karma = {"karma": karma}
-        await update_karma(chat_id, await int_to_alpha(user_id), new_karma)
+        await update_karma(
+            chat_id, await int_to_alpha(user_id), new_karma
+        )
     else:
         karma = 1
         new_karma = {"karma": karma}
-        await update_karma(chat_id, await int_to_alpha(user_id), new_karma)
+        await update_karma(
+            chat_id, await int_to_alpha(user_id), new_karma
+        )
     await message.reply_text(
         f"Incremented Karma of {user_mention} By 1 \nTotal Points: {karma}"
     )
@@ -110,16 +119,22 @@ async def downvote(_, message):
     chat_id = message.chat.id
     user_id = message.reply_to_message.from_user.id
     user_mention = message.reply_to_message.from_user.mention
-    current_karma = await get_karma(chat_id, await int_to_alpha(user_id))
+    current_karma = await get_karma(
+        chat_id, await int_to_alpha(user_id)
+    )
     if current_karma:
         current_karma = current_karma["karma"]
         karma = current_karma - 1
         new_karma = {"karma": karma}
-        await update_karma(chat_id, await int_to_alpha(user_id), new_karma)
+        await update_karma(
+            chat_id, await int_to_alpha(user_id), new_karma
+        )
     else:
         karma = 1
         new_karma = {"karma": karma}
-        await update_karma(chat_id, await int_to_alpha(user_id), new_karma)
+        await update_karma(
+            chat_id, await int_to_alpha(user_id), new_karma
+        )
     await message.reply_text(
         f"Decremented Karma Of {user_mention} By 1 \nTotal Points: {karma}"
     )
@@ -130,12 +145,11 @@ async def downvote(_, message):
 async def command_karma(_, message):
     chat_id = message.chat.id
     if not message.reply_to_message:
-        m = await message.reply_text("Analyzing Karma...Will Take 10 Seconds")
+        m = await message.reply_text("Analyzing Karma...")
         karma = await get_karmas(chat_id)
         if not karma:
-            await m.edit("No karma in DB for this chat.")
-            return
-        msg = f"**Karma list of {message.chat.title}:- **\n"
+            return await m.edit("No karma in DB for this chat.")
+        msg = f"Karma list of {message.chat.title}"
         limit = 0
         karma_dicc = {}
         for i in karma:
@@ -144,28 +158,28 @@ async def command_karma(_, message):
             karma_dicc[str(user_id)] = user_karma
             karma_arranged = dict(
                 sorted(
-                    karma_dicc.items(), key=lambda item: item[1], reverse=True
+                    karma_dicc.items(),
+                    key=lambda item: item[1],
+                    reverse=True,
                 )
             )
         if not karma_dicc:
-            await m.edit("No karma in DB for this chat.")
-            return
+            return await m.edit("No karma in DB for this chat.")
+        userdb = await get_user_id_and_usernames(app)
+        karma = {}
         for user_idd, karma_count in karma_arranged.items():
-            if limit > 9:
+            if limit > 15:
                 break
-            try:
-                user = await app.get_users(int(user_idd))
-                await asyncio.sleep(0.8)
-            except Exception:
+            if int(user_idd) not in list(userdb.keys()):
                 continue
-            first_name = user.first_name
-            if not first_name:
-                continue
-            username = user.username
-            msg += f"**{karma_count}**  {(first_name[0:12] + '...') if len(first_name) > 12 else first_name}  `{('@' + username) if username else user_idd}`\n"
+            username = userdb[int(user_idd)]
+            karma[karma_count] = ["@" + username]
             limit += 1
-        await m.edit(msg)
+        await m.edit(section(msg, karma))
     else:
+        if not message.reply_to_message.from_user:
+            return await message.reply("Anon user hash no karma.")
+
         user_id = message.reply_to_message.from_user.id
         karma = await get_karma(chat_id, await int_to_alpha(user_id))
         if karma:

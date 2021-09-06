@@ -65,13 +65,16 @@ def isArgInt(message: Message) -> bool:
 
 
 @app2.on_message(
-    filters.command("q", prefixes=USERBOT_PREFIX) & filters.user(SUDOERS)
+    filters.command("q", prefixes=USERBOT_PREFIX)
+    & filters.user(SUDOERS)
 )
 @app.on_message(filters.command("q") & ~filters.private)
 @capture_err
 async def quotly_func(client, message: Message):
     if not message.reply_to_message:
-        return await message.reply_text("Reply to a message to quote it.")
+        return await message.reply_text(
+            "Reply to a message to quote it."
+        )
     if not message.reply_to_message.text:
         return await message.reply_text(
             "Replied message has no text, can't quote it."
@@ -85,18 +88,21 @@ async def quotly_func(client, message: Message):
         if arg[0]:
             if arg[1] < 2 or arg[1] > 10:
                 return await m.edit("Argument must be between 2-10.")
+
             count = arg[1]
-            messages = await client.get_messages(
-                message.chat.id,
-                [
-                    i
-                    for i in range(
+
+            messages = [
+                i
+                for i in await client.get_messages(
+                    message.chat.id,
+                    range(
                         message.reply_to_message.message_id,
                         message.reply_to_message.message_id + count,
-                    )
-                ],
-                replies=0,
-            )
+                    ),
+                    replies=0,
+                )
+                if not i.empty
+            ]
         else:
             if getArg(message) != "r":
                 return await m.edit(
@@ -114,6 +120,9 @@ async def quotly_func(client, message: Message):
         )
         return
     try:
+        if not message:
+            return await m.edit("Something went wrong.")
+
         sticker = await quotify(messages)
         if not sticker[0]:
             await message.reply_text(sticker[1])
@@ -123,11 +132,11 @@ async def quotly_func(client, message: Message):
         await m.delete()
         sticker.close()
     except Exception as e:
-        await message.reply_text(
-            "Something wrong happened while quoting messages,"
+        await m.edit(
+            "Something went wrong while quoting messages,"
             + " This error usually happens when there's a "
-            + " message containing something other than text."
+            + " message containing something other than text,"
+            + " or one of the messages in-between are deleted."
         )
-        await m.delete()
         e = format_exc()
         print(e)

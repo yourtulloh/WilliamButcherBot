@@ -21,32 +21,34 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-import asyncio
-import json
-import urllib.request
 
-from pyrogram import filters
-
-from wbb import app
-from wbb.core.decorators.errors import capture_err
-
-__MODULE__ = "Images"
-__HELP__ = """/cat  - Get Cute Cats Images
-For more images search like wallpapers etc, use inline mode.
-"""
+n = "\n"
+w = " "
 
 
-async def delete_message_with_delay(delay, message):
-    await asyncio.sleep(delay)
-    await message.delete()
+bold = lambda x: f"**{x}:** "
+bold_ul = lambda x: f"**--{x}:**-- "
+
+mono = lambda x: f"`{x}`{n}"
 
 
-@app.on_message(filters.command("cat") & ~filters.edited)
-@capture_err
-async def cat(_, message):
-    with urllib.request.urlopen(
-        "https://api.thecatapi.com/v1/images/search"
-    ) as url:
-        data = json.loads(url.read().decode())
-    cat_url = data[0]["url"]
-    await message.reply_photo(cat_url)
+def section(
+    title: str,
+    body: dict,
+    indent: int = 2,
+    underline: bool = False,
+) -> str:
+
+    text = (bold_ul(title) + n) if underline else bold(title) + n
+
+    for key, value in body.items():
+        text += (
+            indent * w
+            + bold(key)
+            + (
+                (value[0] + n)
+                if isinstance(value, list)
+                else mono(value)
+            )
+        )
+    return text

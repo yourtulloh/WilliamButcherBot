@@ -33,6 +33,7 @@ from pyrogram import Client
 from pyrogram.types import Message
 from pyromod import listen
 from Python_ARQ import ARQ
+from telegraph import Telegraph
 
 is_config = path.exists("config.py")
 
@@ -92,9 +93,7 @@ aiohttpsession = ClientSession()
 
 arq = ARQ(ARQ_API_URL, ARQ_API_KEY, aiohttpsession)
 
-app = Client(
-    "wbb", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH
-)
+app = Client("wbb", bot_token=BOT_TOKEN, api_id=API_ID, api_hash=API_HASH)
 
 print("[INFO]: STARTING BOT CLIENT")
 app.start()
@@ -120,10 +119,15 @@ USERBOT_DC_ID = y.dc_id
 if USERBOT_ID not in SUDOERS:
     SUDOERS.append(USERBOT_ID)
 
+telegraph = Telegraph()
+telegraph.create_account(short_name=BOT_USERNAME)
+
 
 async def eor(msg: Message, **kwargs):
-    func = msg.edit_text if msg.from_user.is_self else msg.reply
-    spec = getfullargspec(func.__wrapped__).args
-    return await func(
-        **{k: v for k, v in kwargs.items() if k in spec}
+    func = (
+        (msg.edit_text if msg.from_user.is_self else msg.reply)
+        if msg.from_user
+        else msg.reply
     )
+    spec = getfullargspec(func.__wrapped__).args
+    return await func(**{k: v for k, v in kwargs.items() if k in spec})

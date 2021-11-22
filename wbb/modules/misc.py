@@ -27,7 +27,7 @@ from asyncio import Lock
 
 from pyrogram import filters
 
-from wbb import app, arq
+from wbb import SUDOERS, USERBOT_PREFIX, app, app2, arq, eor
 from wbb.core.decorators.errors import capture_err
 from wbb.utils import random_line
 from wbb.utils.http import get
@@ -82,6 +82,9 @@ __HELP__ = """
 /pdf [Reply to an image (as document) or a group of images.]
     Convert images to PDF, helpful for online classes.
 
+/markdownhelp
+    Sends mark down and formatting help.
+
 #RTFM - Tell noobs to read the manual
 """
 
@@ -107,9 +110,7 @@ async def asq(_, message):
 
 @app.on_message(filters.command("commit") & ~filters.edited)
 async def commit(_, message):
-    await message.reply_text(
-        await get("http://whatthecommit.com/index.txt")
-    )
+    await message.reply_text(await get("http://whatthecommit.com/index.txt"))
 
 
 @app.on_message(filters.command("RTFM", "#"))
@@ -124,34 +125,45 @@ async def rtfm(_, message):
 
 @app.on_message(filters.command("runs") & ~filters.edited)
 async def runs(_, message):
-    await message.reply_text(
-        (await random_line("wbb/utils/runs.txt"))
-    )
+    await message.reply_text((await random_line("wbb/utils/runs.txt")))
 
 
+@app2.on_message(
+    filters.command("id", prefixes=USERBOT_PREFIX) & filters.user(SUDOERS)
+)
 @app.on_message(filters.command("id"))
-async def getid(_, message):
+async def getid(client, message):
     chat = message.chat
     your_id = message.from_user.id
     message_id = message.message_id
     reply = message.reply_to_message
+
     text = f"**[Message ID:]({message.link})** `{message_id}`\n"
     text += f"**[Your ID:](tg://user?id={your_id})** `{your_id}`\n"
+
+    if not message.command:
+        message.command = message.text.split()
+
     if len(message.command) == 2:
         try:
             split = message.text.split(None, 1)[1].strip()
-            user_id = (await app.get_users(split)).id
+            user_id = (await client.get_users(split)).id
             text += f"**[User ID:](tg://user?id={user_id})** `{user_id}`\n"
         except Exception:
-            return await message.reply_text(
-                "This user doesn't exist."
-            )
+            return await eor(message, text="This user doesn't exist.")
+
     text += f"**[Chat ID:](https://t.me/{chat.username})** `{chat.id}`\n\n"
     if not getattr(reply, "empty", True):
-        text += f"**[Replied Message ID:]({reply.link})** `{reply.message_id}`\n"
+        text += (
+            f"**[Replied Message ID:]({reply.link})** `{reply.message_id}`\n"
+        )
         text += f"**[Replied User ID:](tg://user?id={reply.from_user.id})** `{reply.from_user.id}`"
-    await message.reply_text(
-        text, disable_web_page_preview=True, parse_mode="md"
+
+    await eor(
+        message,
+        text=text,
+        disable_web_page_preview=True,
+        parse_mode="md",
     )
 
 
@@ -172,9 +184,7 @@ async def random(_, message):
             )
             await message.reply_text(f"`{password}`")
         else:
-            await message.reply_text(
-                "Specify A Length Between 1-1000"
-            )
+            await message.reply_text("Specify A Length Between 1-1000")
     except ValueError:
         await message.reply_text(
             "Strings Won't Work!, Pass A Positive Integer Less Than 1000"
@@ -198,9 +208,7 @@ async def tr(_, message):
     reply = message.reply_to_message
     text = reply.text or reply.caption
     if not text:
-        return await message.reply_text(
-            "Reply to a text to translate it"
-        )
+        return await message.reply_text("Reply to a text to translate it")
     result = await arq.translate(text, lang)
     if not result.ok:
         return await message.reply_text(result.result)
@@ -233,9 +241,7 @@ async def json_fetch(_, message):
 @capture_err
 async def take_ss(_, message):
     if len(message.command) != 2:
-        return await message.reply_text(
-            "Give A Url To Fetch Screenshot."
-        )
+        return await message.reply_text("Give A Url To Fetch Screenshot.")
     url = message.text.split(None, 1)[1]
     m = await message.reply_text("**Uploading**")
     try:

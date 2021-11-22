@@ -40,12 +40,13 @@ __HELP__ = """/filters To Get All The Filters In The Chat.
 /stop [FILTER_NAME] To Stop A Filter.
 
 
-You can use markdown or html to save text too."""
+You can use markdown or html to save text too.
+
+Checkout /markdownhelp to know more about formattings and other syntax.
+"""
 
 
-@app.on_message(
-    filters.command("filter") & ~filters.edited & ~filters.private
-)
+@app.on_message(filters.command("filter") & ~filters.edited & ~filters.private)
 @adminsOnly("can_change_info")
 async def save_filters(_, message):
     if len(message.command) < 2 or not message.reply_to_message:
@@ -83,9 +84,7 @@ async def save_filters(_, message):
 async def get_filterss(_, message):
     _filters = await get_filters_names(message.chat.id)
     if not _filters:
-        return await message.reply_text(
-            "**No filters in this chat.**"
-        )
+        return await message.reply_text("**No filters in this chat.**")
     _filters.sort()
     msg = f"List of filters in {message.chat.title}\n"
     for _filter in _filters:
@@ -93,20 +92,14 @@ async def get_filterss(_, message):
     await message.reply_text(msg)
 
 
-@app.on_message(
-    filters.command("stop") & ~filters.edited & ~filters.private
-)
+@app.on_message(filters.command("stop") & ~filters.edited & ~filters.private)
 @adminsOnly("can_change_info")
 async def del_filter(_, message):
     if len(message.command) < 2:
-        return await message.reply_text(
-            "**Usage:**\n__/stop [FILTER_NAME]__"
-        )
+        return await message.reply_text("**Usage:**\n__/stop [FILTER_NAME]__")
     name = message.text.split(None, 1)[1].strip()
     if not name:
-        return await message.reply_text(
-            "**Usage:**\n__/stop [FILTER_NAME]__"
-        )
+        return await message.reply_text("**Usage:**\n__/stop [FILTER_NAME]__")
     chat_id = message.chat.id
     deleted = await delete_filter(chat_id, name)
     if deleted:

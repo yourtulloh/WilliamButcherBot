@@ -34,6 +34,7 @@ from wbb import (BOT_NAME, BOT_USERNAME, LOG_GROUP_ID, USERBOT_NAME,
 from wbb.modules import ALL_MODULES
 from wbb.modules.sudoers import bot_sys_stats
 from wbb.utils import paginate_modules
+from wbb.utils.constants import MARKDOWN
 from wbb.utils.dbfunctions import clean_restart_stage
 
 loop = asyncio.get_event_loop()
@@ -42,11 +43,10 @@ HELPABLE = {}
 
 
 async def start_bot():
+    global HELPABLE
 
     for module in ALL_MODULES:
-        imported_module = importlib.import_module(
-            "wbb.modules." + module
-        )
+        imported_module = importlib.import_module("wbb.modules." + module)
         if (
             hasattr(imported_module, "__MODULE__")
             and imported_module.__MODULE__
@@ -56,9 +56,7 @@ async def start_bot():
                 hasattr(imported_module, "__HELP__")
                 and imported_module.__HELP__
             ):
-                HELPABLE[
-                    imported_module.__MODULE__.lower()
-                ] = imported_module
+                HELPABLE[imported_module.__MODULE__.lower()] = imported_module
     bot_modules = ""
     j = 1
     for i in ALL_MODULES:
@@ -68,19 +66,11 @@ async def start_bot():
         else:
             bot_modules += "|{:<15}".format(i)
         j += 1
-    print(
-        "+===============================================================+"
-    )
-    print(
-        "|                              WBB                              |"
-    )
-    print(
-        "+===============+===============+===============+===============+"
-    )
+    print("+===============================================================+")
+    print("|                              WBB                              |")
+    print("+===============+===============+===============+===============+")
     print(bot_modules)
-    print(
-        "+===============+===============+===============+===============+"
-    )
+    print("+===============+===============+===============+===============+")
     print(f"[INFO]: BOT STARTED AS {BOT_NAME}!")
     print(f"[INFO]: USERBOT STARTED AS {USERBOT_NAME}!")
 
@@ -102,8 +92,13 @@ async def start_bot():
 
     await idle()
 
-    print("[INFO]: STOPPING BOT AND CLOSING AIOHTTP SESSION")
     await aiohttpsession.close()
+    print("[INFO]: CLOSING AIOHTTP SESSION AND STOPPING BOT")
+    await app.stop()
+    print("[INFO]: Bye!")
+    for task in asyncio.all_tasks():
+        task.cancel()
+    print("[INFO]: Turned off!")
 
 
 home_keyboard_pm = InlineKeyboardMarkup(
@@ -142,46 +137,121 @@ home_text_pm = (
 )
 
 
-@app.on_message(filters.command(["help", "start"]))
-async def help_command(_, message):
+keyboard = InlineKeyboardMarkup(
+    [
+        [
+            InlineKeyboardButton(
+                text="Help ❓",
+                url=f"t.me/{BOT_USERNAME}?start=help",
+            ),
+            InlineKeyboardButton(
+                text="Repo 🛠",
+                url="https://github.com/thehamkercat/WilliamButcherBot",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="System Stats 💻",
+                callback_data="stats_callback",
+            ),
+            InlineKeyboardButton(text="Support 👨", url="t.me/WBBSupport"),
+        ],
+    ]
+)
+
+
+@app.on_message(filters.command("start"))
+async def start(_, message):
     if message.chat.type != "private":
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        text="Help ❓",
-                        url=f"t.me/{BOT_USERNAME}?start=help",
-                    ),
-                    InlineKeyboardButton(
-                        text="Repo 🛠",
-                        url="https://github.com/thehamkercat/WilliamButcherBot",
-                    ),
-                ],
-                [
-                    InlineKeyboardButton(
-                        text="System Stats 💻",
-                        callback_data="stats_callback",
-                    ),
-                    InlineKeyboardButton(
-                        text="Support 👨", url="t.me/WBBSupport"
-                    ),
-                ],
-            ]
-        )
         return await message.reply(
             "Pm Me For More Details.", reply_markup=keyboard
         )
-    await message.reply(
-        home_text_pm,
-        reply_markup=home_keyboard_pm,
-    )
+    if len(message.text.split()) > 1:
+        name = (message.text.split(None, 1)[1]).lower()
+        if name == "mkdwn_help":
+            await message.reply(
+                MARKDOWN, parse_mode="html", disable_web_page_preview=True
+            )
+        elif "_" in name:
+            module = name.split("_", 1)[1]
+            text = (
+                f"Here is the help for **{HELPABLE[module].__MODULE__}**:\n"
+                + HELPABLE[module].__HELP__
+            )
+            await message.reply(text, disable_web_page_preview=True)
+        elif name == "help":
+            text, keyb = await help_parser(message.from_user.first_name)
+            await message.reply(
+                text,
+                reply_markup=keyb,
+            )
+    else:
+        await message.reply(
+            home_text_pm,
+            reply_markup=home_keyboard_pm,
+        )
+    return
+
+
+@app.on_message(filters.command("help"))
+async def help_command(_, message):
+    if message.chat.type != "private":
+        if len(message.command) >= 2:
+            name = (message.text.split(None, 1)[1]).lower()
+            if str(name) in HELPABLE:
+                key = InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                text="Click here",
+                                url=f"t.me/{BOT_USERNAME}?start=help_{name}",
+                            )
+                        ],
+                    ]
+                )
+                await message.reply(
+                    f"Click on the below button to get help about {name}",
+                    reply_markup=key,
+                )
+            else:
+                await message.reply(
+                    "PM Me For More Details.", reply_markup=keyboard
+                )
+        else:
+            await message.reply(
+                "Pm Me For More Details.", reply_markup=keyboard
+            )
+    else:
+        if len(message.command) >= 2:
+            name = (message.text.split(None, 1)[1]).lower()
+            if str(name) in HELPABLE:
+                text = (
+                    f"Here is the help for **{HELPABLE[name].__MODULE__}**:\n"
+                    + HELPABLE[name].__HELP__
+                )
+                await message.reply(text, disable_web_page_preview=True)
+            else:
+                text, help_keyboard = await help_parser(
+                    message.from_user.first_name
+                )
+                await message.reply(
+                    text,
+                    reply_markup=help_keyboard,
+                    disable_web_page_preview=True,
+                )
+        else:
+            text, help_keyboard = await help_parser(
+                message.from_user.first_name
+            )
+            await message.reply(
+                text, reply_markup=help_keyboard, disable_web_page_preview=True
+            )
+    return
 
 
 async def help_parser(name, keyboard=None):
     if not keyboard:
-        keyboard = InlineKeyboardMarkup(
-            paginate_modules(0, HELPABLE, "help")
-        )
+        keyboard = InlineKeyboardMarkup(paginate_modules(0, HELPABLE, "help"))
     return (
         """Hello {first_name}, My name is {bot_name}.
 I'm a group management bot with some useful features.
@@ -197,9 +267,7 @@ Also you can ask anything in Support Group.
 
 @app.on_callback_query(filters.regex("bot_commands"))
 async def commands_callbacc(_, CallbackQuery):
-    text, keyboard = await help_parser(
-        CallbackQuery.from_user.mention
-    )
+    text, keyboard = await help_parser(CallbackQuery.from_user.mention)
     await app.send_message(
         CallbackQuery.message.chat.id,
         text=text,
@@ -212,9 +280,7 @@ async def commands_callbacc(_, CallbackQuery):
 @app.on_callback_query(filters.regex("stats_callback"))
 async def stats_callbacc(_, CallbackQuery):
     text = await bot_sys_stats()
-    await app.answer_callback_query(
-        CallbackQuery.id, text, show_alert=True
-    )
+    await app.answer_callback_query(CallbackQuery.id, text, show_alert=True)
 
 
 @app.on_callback_query(filters.regex(r"help_(.*?)"))
@@ -247,13 +313,7 @@ General command are:
         await query.message.edit(
             text=text,
             reply_markup=InlineKeyboardMarkup(
-                [
-                    [
-                        InlineKeyboardButton(
-                            "back", callback_data="help_back"
-                        )
-                    ]
-                ]
+                [[InlineKeyboardButton("back", callback_data="help_back")]]
             ),
             disable_web_page_preview=True,
         )
@@ -306,4 +366,11 @@ General command are:
 
 if __name__ == "__main__":
     uvloop.install()
-    loop.run_until_complete(start_bot())
+    try:
+        try:
+            loop.run_until_complete(start_bot())
+        except asyncio.exceptions.CancelledError:
+            pass
+        loop.run_until_complete(asyncio.sleep(3.0))  # task cancel wait
+    finally:
+        loop.close()

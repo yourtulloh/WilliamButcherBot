@@ -70,7 +70,7 @@ async def callback_query_forward_rice(_, callback_query):
     u_approver = callback_query.from_user
     c_group = callback_query.message.chat
     approver_status = (await c_group.get_member(u_approver.id)).status
-    if not (approver_status in ("creator", "administrator")):
+    if approver_status not in ("creator", "administrator"):
         await callback_query.answer("Only admin can approve this!")
         return
     await callback_query.answer("Successfully approved")

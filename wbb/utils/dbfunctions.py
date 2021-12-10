@@ -59,13 +59,11 @@ rssdb = db.rss
 def obj_to_str(obj):
     if not obj:
         return False
-    string = codecs.encode(pickle.dumps(obj), "base64").decode()
-    return string
+    return codecs.encode(pickle.dumps(obj), "base64").decode()
 
 
 def str_to_obj(string: str):
-    obj = pickle.loads(codecs.decode(string.encode(), "base64"))
-    return obj
+    return pickle.loads(codecs.decode(string.encode(), "base64"))
 
 
 async def get_notes_count() -> dict:
@@ -192,11 +190,8 @@ async def delete_filter(chat_id: int, name: str) -> bool:
 
 async def int_to_alpha(user_id: int) -> str:
     alphabet = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
-    text = ""
     user_id = str(user_id)
-    for i in user_id:
-        text += alphabet[int(i)]
-    return text
+    return "".join(alphabet[int(i)] for i in user_id)
 
 
 async def alpha_to_int(user_id_alphabet: str) -> int:
@@ -312,9 +307,7 @@ async def update_karma(chat_id: int, name: str, karma: dict):
 
 async def is_karma_on(chat_id: int) -> bool:
     chat = await karmadb.find_one({"chat_id_toggle": chat_id})
-    if not chat:
-        return True
-    return False
+    return not chat
 
 
 async def karma_on(chat_id: int):
@@ -333,9 +326,7 @@ async def karma_off(chat_id: int):
 
 async def is_served_chat(chat_id: int) -> bool:
     chat = await chatsdb.find_one({"chat_id": chat_id})
-    if not chat:
-        return False
-    return True
+    return bool(chat)
 
 
 async def get_served_chats() -> list:
@@ -364,9 +355,7 @@ async def remove_served_chat(chat_id: int):
 
 async def is_served_user(user_id: int) -> bool:
     user = await usersdb.find_one({"user_id": user_id})
-    if not user:
-        return False
-    return True
+    return bool(user)
 
 
 async def get_served_users() -> list:
@@ -394,9 +383,7 @@ async def get_gbans_count() -> int:
 
 async def is_gbanned_user(user_id: int) -> bool:
     user = await gbansdb.find_one({"user_id": user_id})
-    if not user:
-        return False
-    return True
+    return bool(user)
 
 
 async def add_gban_user(user_id: int):
@@ -439,9 +426,7 @@ async def save_couple(chat_id: int, date: str, couple: dict):
 
 async def is_captcha_on(chat_id: int) -> bool:
     chat = await captchadb.find_one({"chat_id": chat_id})
-    if not chat:
-        return True
-    return False
+    return not chat
 
 
 async def captcha_on(chat_id: int):
@@ -475,9 +460,7 @@ async def save_captcha_solved(chat_id: int, user_id: int):
 
 async def is_antiservice_on(chat_id: int) -> bool:
     chat = await antiservicedb.find_one({"chat_id": chat_id})
-    if not chat:
-        return True
-    return False
+    return not chat
 
 
 async def antiservice_on(chat_id: int):
@@ -496,9 +479,7 @@ async def antiservice_off(chat_id: int):
 
 async def is_pmpermit_approved(user_id: int) -> bool:
     user = await pmpermitdb.find_one({"user_id": user_id})
-    if not user:
-        return False
-    return True
+    return bool(user)
 
 
 async def approve_pmpermit(user_id: int):
@@ -713,9 +694,7 @@ async def clean_restart_stage() -> dict:
 
 async def is_flood_on(chat_id: int) -> bool:
     chat = await flood_toggle_db.find_one({"chat_id": chat_id})
-    if not chat:
-        return True
-    return False
+    return not chat
 
 
 async def flood_on(chat_id: int):
@@ -761,16 +740,11 @@ async def get_rss_feeds() -> list:
     feeds = await feeds.to_list(length=10000000)
     if not feeds:
         return
-    data = []
-    for feed in feeds:
-        data.append(
-            dict(
+    return [dict(
                 chat_id=feed["chat_id"],
                 url=feed["url"],
                 last_title=feed["last_title"],
-            )
-        )
-    return data
+            ) for feed in feeds]
 
 
 async def get_rss_feeds_count() -> int:

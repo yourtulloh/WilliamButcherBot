@@ -17,7 +17,7 @@ async def autocorrect_bot(_, message: Message):
     if not data.ok:
         return await message.reply_text("Something wrong happened.")
     result = data.result
-    await message.reply_text(result.corrected if result.corrected else "Empty")
+    await message.reply_text(result.corrected or "Empty")
 
 
 IS_ENABLED = False

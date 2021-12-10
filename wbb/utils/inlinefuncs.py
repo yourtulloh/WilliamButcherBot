@@ -186,7 +186,7 @@ async def urban_func(answers, text):
             )
         )
         return answers
-    results = results.result[0:48]
+    results = results.result[:48]
     for i in results:
         clean = lambda x: re_sub(r"[\[\]]", "", x)
         msg = f"""
@@ -244,7 +244,7 @@ async def wall_func(answers, text):
             )
         )
         return answers
-    results = results.result[0:48]
+    results = results.result[:48]
     for i in results:
         answers.append(
             InlineQueryResultPhoto(
@@ -267,7 +267,7 @@ async def torrent_func(answers, text):
             )
         )
         return answers
-    results = results.result[0:48]
+    results = results.result[:48]
     for i in results:
         title = i.name
         size = i.size
@@ -293,7 +293,6 @@ async def torrent_func(answers, text):
                 ),
             )
         )
-        pass
     return answers
 
 
@@ -308,7 +307,7 @@ async def youtube_func(answers, text):
             )
         )
         return answers
-    results = results.result[0:48]
+    results = results.result[:48]
     for i in results:
         buttons = InlineKeyboard(row_width=1)
         video_url = f"https://youtube.com{i.url_suffix}"
@@ -452,19 +451,16 @@ async def music_inline_func(answers, query):
             )
         )
         return answers
-    messages_ids_and_duration = []
-    for f_ in messages:
-        messages_ids_and_duration.append(
-            {
-                "message_id": f_.message_id,
-                "duration": f_.audio.duration if f_.audio.duration else 0,
-            }
-        )
+    messages_ids_and_duration = [
+        {"message_id": f_.message_id, "duration": f_.audio.duration or 0}
+        for f_ in messages
+    ]
+
     messages = list(
         {v["duration"]: v for v in messages_ids_and_duration}.values()
     )
     messages_ids = [ff_["message_id"] for ff_ in messages]
-    messages = await app.get_messages(chat_id, messages_ids[0:48])
+    messages = await app.get_messages(chat_id, messages_ids[:48])
     return [
         InlineQueryResultCachedDocument(
             file_id=message_.audio.file_id,
@@ -683,11 +679,8 @@ async def tmdb_func(answers, query):
     for result in results:
         if not result.poster and not result.backdrop:
             continue
-        if not result.genre:
-            genre = None
-        else:
-            genre = " | ".join(result.genre)
-        description = result.overview[0:900] if result.overview else "None"
+        genre = None if not result.genre else " | ".join(result.genre)
+        description = result.overview[:900] if result.overview else "None"
         caption = f"""
 **{result.title}**
 **Type:** {result.type}
@@ -705,15 +698,14 @@ async def tmdb_func(answers, query):
         )
         answers.append(
             InlineQueryResultPhoto(
-                photo_url=result.backdrop
-                if result.backdrop
-                else result.poster,
+                photo_url=result.backdrop or result.poster,
                 caption=caption,
                 title=result.title,
                 description=f"{genre} • {result.releaseDate} • {result.rating} • {description}",
                 reply_markup=buttons,
             )
         )
+
     return answers
 
 

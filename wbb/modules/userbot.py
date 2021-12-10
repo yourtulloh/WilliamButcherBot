@@ -191,18 +191,17 @@ async def shellrunner(_, message: Message):
     output += "\n"
     if str(output) == "\n":
         output = None
-    if output:
-        if len(output) > 4096:
-            with open("output.txt", "w+") as file:
-                file.write(output)
-            await message.reply_document("output.txt",caption=f"{escape(text)}")
-            return os.remove("output.txt")
-        await eor(
-        message,
-        text=f"**INPUT:**\n```{escape(text)}```\n\n**OUTPUT:**\n```{(output)}```",
-        )
-    else:
+    if not output:
         return await eor(
         message,
         text=f"**INPUT:**\n```{escape(text)}```\n\n**OUTPUT: **\n`No output`",
         )
+    if len(output) > 4096:
+        with open("output.txt", "w+") as file:
+            file.write(output)
+        await message.reply_document("output.txt",caption=f"{escape(text)}")
+        return os.remove("output.txt")
+    await eor(
+    message,
+    text=f"**INPUT:**\n```{escape(text)}```\n\n**OUTPUT:**\n```{(output)}```",
+    )

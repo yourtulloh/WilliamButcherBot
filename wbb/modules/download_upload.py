@@ -97,7 +97,7 @@ async def download_func(_, message: Message):
     except Exception as e:
         e = format_exc()
         e = e.splitlines()[-1]
-        return await eor(m, text=f"**Error:** `{str(e)}`")
+        return await eor(m, text=f'**Error:** `{e}`')
 
     elapsed = int(time() - start)
     body["File"] = file.split("/")[-1]

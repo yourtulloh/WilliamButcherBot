@@ -139,9 +139,8 @@ async def chatbot_talk_ubot(_, message: Message):
             and username not in message.text
         ):
             return
-    else:
-        if username not in message.text:
-            return
+    elif username not in message.text:
+        return
     await type_and_send(message)
 
 

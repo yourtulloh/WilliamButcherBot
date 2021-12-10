@@ -144,8 +144,6 @@ async def welcome(_, message: Message):
             callback_data=f"pressed_button {captcha_answer} {member.id}",
         )
         temp_keyboard_1 = [correct_button]  # Button row 1
-        temp_keyboard_2 = []  # Botton row 2
-        temp_keyboard_3 = []
         for i in range(2):
             temp_keyboard_1.append(
                 InlineKeyboardButton(
@@ -153,21 +151,14 @@ async def welcome(_, message: Message):
                     callback_data=f"pressed_button {wrong_answers[i]} {member.id}",
                 )
             )
-        for i in range(2, 5):
-            temp_keyboard_2.append(
-                InlineKeyboardButton(
+        temp_keyboard_2 = [InlineKeyboardButton(
                     f"{wrong_answers[i]}",
                     callback_data=f"pressed_button {wrong_answers[i]} {member.id}",
-                )
-            )
-        for i in range(5, 8):
-            temp_keyboard_3.append(
-                InlineKeyboardButton(
+                ) for i in range(2, 5)]
+        temp_keyboard_3 = [InlineKeyboardButton(
                     f"{wrong_answers[i]}",
                     callback_data=f"pressed_button {wrong_answers[i]} {member.id}",
-                )
-            )
-
+                ) for i in range(5, 8)]
         shuffle(temp_keyboard_1)
         keyboard = [temp_keyboard_1, temp_keyboard_2, temp_keyboard_3]
         shuffle(keyboard)

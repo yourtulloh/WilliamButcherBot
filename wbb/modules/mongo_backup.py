@@ -21,18 +21,35 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+from os import remove
+from os import system as execute
 
 from pyrogram import filters
+from pyrogram.types import Message
 
-from wbb import BOT_ID, SUDOERS, USERBOT_PREFIX, app2
+from wbb import MONGO_URL, SUDOERS, app
 
 
-@app2.on_message(
-    filters.command("alive", prefixes=USERBOT_PREFIX) & SUDOERS
-)
-async def alive_command_func(_, message):
-    await message.delete()
-    results = await app2.get_inline_bot_results(BOT_ID, "alive")
-    await app2.send_inline_bot_result(
-        message.chat.id, results.query_id, results.results[0].id
-    )
+@app.on_message(filters.command("backup") & SUDOERS)
+async def backup(_, message: Message):
+    if message.chat.type != "private":
+        return await message.reply("This command can only be used in private")
+
+    m = await message.reply("Backing up data...")
+
+    code = execute(f'mongodump --uri "{MONGO_URL}"')
+    if int(code) != 0:
+        return await m.edit(
+            "Looks like you don't have mongo-database-tools installed "
+            + "grab it from mongodb.com/try/download/database-tools"
+        )
+
+    code = execute("zip backup.zip -r9 dump/*")
+    if int(code) != 0:
+        return await m.edit(
+            "Looks like you don't have `zip` package installed, BACKUP FAILED!"
+        )
+
+    await message.reply_document("backup.zip")
+    await m.delete()
+    remove("backup.zip")

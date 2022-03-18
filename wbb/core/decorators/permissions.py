@@ -67,7 +67,10 @@ def adminsOnly(permission):
             chatID = message.chat.id
             if not message.from_user:
                 # For anonymous admins
-                if message.sender_chat:
+                if (
+                    message.sender_chat
+                    and message.sender_chat.id == message.chat.id
+                ):
                     return await authorised(
                         func,
                         subFunc2,

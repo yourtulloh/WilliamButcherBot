@@ -1,13 +1,14 @@
+from os import environ
+
 from dotenv import load_dotenv
 
 load_dotenv("config.env")
 
-HEROKU = (
-    True  # NOTE Make it false if you're not deploying on heroku or docker.
-)
+HEROKU = bool(
+    environ.get("DYNO")
+)  # NOTE Make it false if you're not deploying on heroku or docker.
 
 if HEROKU:
-    from os import environ
 
     BOT_TOKEN = environ.get("BOT_TOKEN", None)
     API_ID = int(environ.get("API_ID", 6))
@@ -41,7 +42,7 @@ else:
     WELCOME_DELAY_KICK_SEC = 300
     MONGO_URL = "mongodb+srv://username:password@cluster0.ksiis.mongodb.net/YourDataBaseName?retryWrites=true&w=majority"
     ARQ_API_KEY = "Get this from @ARQRobot"
-    ARQ_API_URL = "https://thearq.tech"
+    ARQ_API_URL = "https://arq.hamker.in"
     LOG_MENTIONS = True
     RSS_DELAY = 300  # In seconds
     PM_PERMIT = True

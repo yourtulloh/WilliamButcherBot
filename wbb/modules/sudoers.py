@@ -30,12 +30,22 @@ import psutil
 from pyrogram import filters
 from pyrogram.errors import FloodWait
 
-from wbb import (BOT_ID, GBAN_LOG_GROUP_ID, SUDOERS, USERBOT_USERNAME, app,
-                 bot_start_time)
+from wbb import (
+    BOT_ID,
+    GBAN_LOG_GROUP_ID,
+    SUDOERS,
+    USERBOT_USERNAME,
+    app,
+    bot_start_time,
+)
 from wbb.core.decorators.errors import capture_err
 from wbb.utils import formatter
-from wbb.utils.dbfunctions import (add_gban_user, get_served_chats,
-                                   is_gbanned_user, remove_gban_user)
+from wbb.utils.dbfunctions import (
+    add_gban_user,
+    get_served_chats,
+    is_gbanned_user,
+    remove_gban_user,
+)
 from wbb.utils.functions import extract_user, extract_user_and_reason, restart
 
 __MODULE__ = "Sudoers"
@@ -69,7 +79,7 @@ async def bot_sys_stats():
     stats = f"""
 {USERBOT_USERNAME}@William
 ------------------
-UPTIME: {formatter.get_readable_time((bot_uptime))}
+UPTIME: {formatter.get_readable_time(bot_uptime)}
 BOT: {round(process.memory_info()[0] / 1024 ** 2)} MB
 CPU: {cpu}%
 RAM: {mem}%
@@ -81,7 +91,7 @@ DISK: {disk}%
 # Gban
 
 
-@app.on_message(filters.command("gban") & filters.user(SUDOERS))
+@app.on_message(filters.command("gban") & SUDOERS)
 @capture_err
 async def ban_globally(_, message):
     user_id, reason = await extract_user_and_reason(message)
@@ -93,8 +103,8 @@ async def ban_globally(_, message):
     if not reason:
         return await message.reply("No reason provided.")
 
-    if user_id in ([from_user.id, BOT_ID] + SUDOERS):
-        return await message.reply_text("No")
+    if user_id in [from_user.id, BOT_ID] or user_id in SUDOERS:
+        return await message.reply_text("I can't ban that user.")
 
     served_chats = await get_served_chats()
     m = await message.reply_text(
@@ -105,7 +115,7 @@ async def ban_globally(_, message):
     number_of_chats = 0
     for served_chat in served_chats:
         try:
-            await app.kick_chat_member(served_chat["chat_id"], user.id)
+            await app.ban_chat_member(served_chat["chat_id"], user.id)
             number_of_chats += 1
             await asyncio.sleep(1)
         except FloodWait as e:
@@ -148,7 +158,7 @@ __**New Global Ban**__
 # Ungban
 
 
-@app.on_message(filters.command("ungban") & filters.user(SUDOERS))
+@app.on_message(filters.command("ungban") & SUDOERS)
 @capture_err
 async def unban_globally(_, message):
     user_id = await extract_user(message)
@@ -167,9 +177,7 @@ async def unban_globally(_, message):
 # Broadcast
 
 
-@app.on_message(
-    filters.command("broadcast") & filters.user(SUDOERS) & ~filters.edited
-)
+@app.on_message(filters.command("broadcast") & SUDOERS & ~filters.edited)
 @capture_err
 async def broadcast_message(_, message):
     if len(message.command) < 2:
@@ -196,7 +204,8 @@ async def broadcast_message(_, message):
 
 # Update
 
-@app.on_message(filters.command("update") & filters.user(SUDOERS))
+
+@app.on_message(filters.command("update") & SUDOERS)
 async def update_restart(_, message):
     try:
         out = subprocess.check_output(["git", "pull"]).decode("UTF-8")
@@ -206,5 +215,6 @@ async def update_restart(_, message):
     except Exception as e:
         return await message.reply_text(str(e))
     m = await message.reply_text(
-        "**Updated with default branch, restarting now.**")
+        "**Updated with default branch, restarting now.**"
+    )
     await restart(m)

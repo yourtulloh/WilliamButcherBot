@@ -10,7 +10,7 @@ import re
 import subprocess
 import sys
 import traceback
-import asyncio
+from asyncio import sleep
 from html import escape
 from io import StringIO
 from time import time
@@ -62,7 +62,7 @@ async def iter_edit(message: Message, text: str):
 
 
 @app2.on_message(
-    filters.user(SUDOERS)
+    SUDOERS
     & ~filters.forwarded
     & ~filters.via_bot
     & filters.command("eval", prefixes=USERBOT_PREFIX)
@@ -154,7 +154,7 @@ async def executor(client, message: Message):
 
 
 @app2.on_message(
-    filters.user(SUDOERS)
+    SUDOERS
     & ~filters.forwarded
     & ~filters.via_bot
     & ~filters.edited
@@ -171,38 +171,65 @@ async def shellrunner(_, message: Message):
             ReplyKeyboardMarkup,
         ):
             return await eor(message, text="INSECURE!")
-    output = ""
+
     text = message.text.split(None, 1)[1]
     if "\n" in text:
         code = text.split("\n")
-        shell = " ".join(code)
+        output = ""
+        for x in code:
+            shell = re.split(""" (?=(?:[^'"]|'[^']*'|"[^"]*")*$)""", x)
+            try:
+                process = subprocess.Popen(
+                    shell,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+            except Exception as err:
+                print(err)
+                await eor(
+                    message,
+                    text=f"**INPUT:**\n```{escape(text)}```\n\n**ERROR:**\n```{escape(err)}```",
+                )
+            output += f"**{code}**\n"
+            output += process.stdout.read()[:-1].decode("utf-8")
+            output += "\n"
     else:
-        shell = text
-    process = await asyncio.create_subprocess_shell(
-              shell,
-              stdout=asyncio.subprocess.PIPE,
-              stderr=asyncio.subprocess.PIPE,
-             )
-    out, errorz = await process.communicate()
-    if errorz:            
-        error=f"**INPUT:**\n```{escape(text)}```\n\n**ERROR:**\n```{errorz.decode('utf-8')}```"
-        return await eor(message, text=error)
-    output += out.decode("utf-8")
-    output += "\n"
+        shell = re.split(""" (?=(?:[^'"]|'[^']*'|"[^"]*")*$)""", text)
+        for a, _ in enumerate(shell):
+            shell[a] = shell[a].replace('"', "")
+        try:
+            process = subprocess.Popen(
+                shell,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        except Exception as err:
+            print(err)
+            errors = traceback.format_exc()
+            return await eor(
+                message,
+                text=f"**INPUT:**\n```{escape(text)}```\n\n**ERROR:**\n```{''.join(errors)}```",
+            )
+        output = process.stdout.read()[:-1].decode("utf-8")
     if str(output) == "\n":
         output = None
     if output:
         if len(output) > 4096:
             with open("output.txt", "w+") as file:
                 file.write(output)
-            await message.reply_document("output.txt",caption=f"{escape(text)}")
+            await app2.send_document(
+                message.chat.id,
+                "output.txt",
+                reply_to_message_id=message.message_id,
+                caption=escape(text),
+            )
             return os.remove("output.txt")
         await eor(
-        message,
-        text=f"**INPUT:**\n```{escape(text)}```\n\n**OUTPUT:**\n```{(output)}```",
+            message,
+            text=f"**INPUT:**\n```{escape(text)}```\n\n**OUTPUT:**\n```{escape(output)}```",
         )
     else:
-        return await eor(
-        message,
-        text=f"**INPUT:**\n```{escape(text)}```\n\n**OUTPUT: **\n`No output`",
+        await eor(
+            message,
+            text=f"**INPUT:**\n```{escape(text)}```\n\n**OUTPUT: **\n`No output`",
         )

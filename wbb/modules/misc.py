@@ -85,6 +85,9 @@ __HELP__ = """
 /markdownhelp
     Sends mark down and formatting help.
 
+/backup
+    Backup database
+
 #RTFM - Tell noobs to read the manual
 """
 
@@ -129,7 +132,7 @@ async def runs(_, message):
 
 
 @app2.on_message(
-    filters.command("id", prefixes=USERBOT_PREFIX) & filters.user(SUDOERS)
+    filters.command("id", prefixes=USERBOT_PREFIX) & SUDOERS
 )
 @app.on_message(filters.command("id"))
 async def getid(client, message):
@@ -154,10 +157,11 @@ async def getid(client, message):
 
     text += f"**[Chat ID:](https://t.me/{chat.username})** `{chat.id}`\n\n"
     if not getattr(reply, "empty", True):
+        id_ = reply.from_user.id if reply.from_user else reply.sender_chat.id
         text += (
             f"**[Replied Message ID:]({reply.link})** `{reply.message_id}`\n"
         )
-        text += f"**[Replied User ID:](tg://user?id={reply.from_user.id})** `{reply.from_user.id}`"
+        text += f"**[Replied User ID:](tg://user?id={id_})** `{id_}`"
 
     await eor(
         message,

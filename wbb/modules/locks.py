@@ -52,11 +52,11 @@ incorrect_parameters = "Incorrect Parameters, Check Locks Section In Help."
 # If url lock is enabled/disabled for a chat
 data = {
     "messages": "can_send_messages",
-    "stickers": "can_send_stickers",
-    "gifs": "can_send_animations",
+    "stickers": "can_send_other_messages",
+    "gifs": "can_send_other_messages",
     "media": "can_send_media_messages",
-    "games": "can_send_games",
-    "inline": "can_use_inline_bots",
+    "games": "can_send_other_messages",
+    "inline": "can_send_other_messages",
     "url": "can_add_web_page_previews",
     "polls": "can_send_polls",
     "group_info": "can_change_info",
@@ -117,21 +117,21 @@ async def locks_func(_, message):
 
     elif parameter == "all" and state == "unlock":
         await app.set_chat_permissions(
-         chat_id,
-         ChatPermissions(
-            can_send_messages=True,
-            can_send_media_messages=True,
-            can_send_stickers=True,
-            can_send_animations=True,
-            can_invite_users=True,
-            can_send_games=True,
-            can_use_inline_bots=True,
-            can_send_polls=True,
-            can_add_web_page_previews=True
-                        )
-                                 )
+            chat_id,
+            ChatPermissions(
+                can_send_messages=True,
+                can_send_media_messages=True,
+                can_send_other_messages=True,
+                can_add_web_page_previews=True,
+                can_send_polls=True,
+                can_change_info=False,
+                can_invite_users=True,
+                can_pin_messages=False,
+            ),
+        )
         await message.reply(f"Unlocked Everything in {message.chat.title}")
-                  
+
+
 @app.on_message(filters.command("locks") & ~filters.private)
 @capture_err
 async def locktypes(_, message):
@@ -155,7 +155,8 @@ async def url_detector(_, message):
 
     if not text or not user:
         return
-    if user.id in (SUDOERS + (await list_admins(chat_id))):
+    mods = (await list_admins(chat_id))
+    if user.id in mods or user.id in SUDOERS:
         return
 
     check = get_urls_from_text(text)

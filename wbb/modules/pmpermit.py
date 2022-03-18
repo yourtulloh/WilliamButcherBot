@@ -41,7 +41,7 @@ flood = {}
     & ~filters.me
     & ~filters.bot
     & ~filters.via_bot
-    & ~filters.user(SUDOERS)
+    & ~SUDOERS
 )
 @capture_err
 async def pmpermit_func(_, message):
@@ -69,7 +69,7 @@ async def pmpermit_func(_, message):
 
 @app2.on_message(
     filters.command("approve", prefixes=USERBOT_PREFIX)
-    & filters.user(SUDOERS)
+    & SUDOERS
     & ~filters.via_bot
 )
 @capture_err
@@ -85,12 +85,14 @@ async def pm_approve(_, message):
 
 @app2.on_message(
     filters.command("disapprove", prefixes=USERBOT_PREFIX)
-    & filters.user(SUDOERS)
+    & SUDOERS
     & ~filters.via_bot
 )
 async def pm_disapprove(_, message):
     if not message.reply_to_message:
-        return await eor(message, text="Reply to a user's message to approve.")
+        return await eor(
+            message, text="Reply to a user's message to disapprove."
+        )
     user_id = message.reply_to_message.from_user.id
     if not await is_pmpermit_approved(user_id):
         await eor(message, text="User is already disapproved to pm")
@@ -107,7 +109,7 @@ async def pm_disapprove(_, message):
 
 @app2.on_message(
     filters.command("block", prefixes=USERBOT_PREFIX)
-    & filters.user(SUDOERS)
+    & SUDOERS
     & ~filters.via_bot
 )
 @capture_err
@@ -122,7 +124,7 @@ async def block_user_func(_, message):
 
 @app2.on_message(
     filters.command("unblock", prefixes=USERBOT_PREFIX)
-    & filters.user(SUDOERS)
+    & SUDOERS
     & ~filters.via_bot
 )
 async def unblock_user_func(_, message):

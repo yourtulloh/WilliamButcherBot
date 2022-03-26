@@ -27,9 +27,9 @@ from time import time
 from pyrogram import filters
 from pyrogram.types import (
     CallbackQuery,
+    ChatMemberUpdated,
     ChatPermissions,
     Message,
-    ChatMemberUpdated,
 )
 
 from wbb import BOT_ID, SUDOERS, app, log
@@ -180,8 +180,8 @@ async def purgeFunc(_, message: Message):
     message_ids = []
 
     for message_id in range(
-        message.reply_to_message.message_id,
-        message.message_id,
+            message.reply_to_message.message_id,
+            message.message_id,
     ):
         message_ids.append(message_id)
 
@@ -315,9 +315,10 @@ async def unban_func(_, message: Message):
     # normal users won't get text_mention if the user
     # they want to unban is not in the group.
     reply = message.reply_to_message
-    if (reply.sender_chat
-       and reply.sender_chat != message.chat.id):
-        return await message.reply_text("Unbanning a Channel?,we dont do it here")
+
+    if reply and reply.sender_chat and reply.sender_chat != message.chat.id:
+        return await message.reply_text("You cannot unban a channel")
+
     if len(message.command) == 2:
         user = message.text.split(None, 1)[1]
     elif len(message.command) == 1 and reply:
@@ -665,8 +666,8 @@ async def check_warns(_, message: Message):
 
 @app.on_message(
     (
-        filters.command("report")
-        | filters.command(["admins", "admin"], prefixes="@")
+            filters.command("report")
+            | filters.command(["admins", "admin"], prefixes="@")
     )
     & ~filters.edited
     & ~filters.private
